@@ -48,36 +48,37 @@ export default function AdminPage() {
   const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
   const [failTarget, setFailTarget] = useState<{ kind: "robux" | "boost"; id: string } | null>(null);
   const [reason, setReason] = useState("");
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  const loadAllData = async () => {
+    const [r, b] = await Promise.all([
+      supabase.from("robux_orders").select("*").order("created_at", { ascending: false }).limit(100),
+      supabase.from("boosting_orders").select("*").order("created_at", { ascending: false }).limit(100),
+    ]);
+    const robuxList = (r.data as RobuxOrder[]) ?? [];
+    const boostList = (b.data as BoostOrder[]) ?? [];
+    setRobux(robuxList);
+    setBoost(boostList);
+    const uids = Array.from(new Set([...robuxList, ...boostList].map((x) => x.user_id)));
+    if (uids.length) {
+      const { data: profs } = await supabase.from("profiles").select("id,display_name").in("id", uids);
+      const map: Record<string, string> = {};
+      (profs ?? []).forEach((p: any) => { map[p.id] = p.display_name; });
+      setProfilesMap(map);
+    }
+  };
 
   useEffect(() => {
     if (!user || roleLoading) return;
     if (!isAdmin) { toast.error("Bạn không có quyền truy cập"); navigate("/"); return; }
-
-    const loadAll = async () => {
-      const [r, b] = await Promise.all([
-        supabase.from("robux_orders").select("*").order("created_at", { ascending: false }).limit(100),
-        supabase.from("boosting_orders").select("*").order("created_at", { ascending: false }).limit(100),
-      ]);
-      const robuxList = (r.data as RobuxOrder[]) ?? [];
-      const boostList = (b.data as BoostOrder[]) ?? [];
-      setRobux(robuxList);
-      setBoost(boostList);
-      const uids = Array.from(new Set([...robuxList, ...boostList].map((x) => x.user_id)));
-      if (uids.length) {
-        const { data: profs } = await supabase.from("profiles").select("id,display_name").in("id", uids);
-        const map: Record<string, string> = {};
-        (profs ?? []).forEach((p: any) => { map[p.id] = p.display_name; });
-        setProfilesMap(map);
-      }
-    };
-    loadAll();
+    loadAllData();
 
     const ch1 = supabase.channel("admin-robux")
       .on("postgres_changes", { event: "*", schema: "public", table: "robux_orders" }, (p) => {
         if (p.eventType === "INSERT") {
           toast.info(`🔔 Đơn Robux mới từ @${(p.new as RobuxOrder).roblox_username}`);
         }
-        loadAll();
+        loadAllData();
       })
       .subscribe();
     const ch2 = supabase.channel("admin-boost")
@@ -85,23 +86,45 @@ export default function AdminPage() {
         if (p.eventType === "INSERT") {
           toast.info(`🔔 Đơn cày mới: ${(p.new as BoostOrder).game}`);
         }
-        loadAll();
+        loadAllData();
       })
       .subscribe();
     return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
   }, [user, isAdmin, roleLoading, navigate]);
 
   const markSeen = async (kind: "robux" | "boost", id: string) => {
-    const fn = kind === "robux" ? "admin_mark_seen_robux" : "admin_mark_seen_boost";
-    const { error } = await supabase.rpc(fn as any, { _id: id });
-    if (error) toast.error(error.message);
+    // Cập nhật local state ngay lập tức để nút "Đã xem" biến mất và nút "Thành công" hiện lên ở trạng thái disabled
+    if (kind === "robux") {
+      setRobux(prev => prev.map(o => o.id === id ? { ...o, seen_by_admin: true } : o));
+    } else {
+      setBoost(prev => prev.map(o => o.id === id ? { ...o, seen_by_admin: true } : o));
+    }
+    
+    setProcessingId(id);
+    try {
+      const fn = kind === "robux" ? "admin_mark_seen_robux" : "admin_mark_seen_boost";
+      const { error } = await supabase.rpc(fn as any, { _id: id });
+      if (error) toast.error(error.message);
+      await loadAllData();
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const complete = async (kind: "robux" | "boost", id: string) => {
-    const fn = kind === "robux" ? "admin_complete_robux_order" : "admin_complete_boost_order";
-    const { error } = await supabase.rpc(fn as any, { _id: id });
-    if (error) return toast.error(error.message);
-    toast.success("Đã đánh dấu hoàn thành");
+    setProcessingId(id);
+    try {
+      const fn = kind === "robux" ? "admin_complete_robux_order" : "admin_complete_boost_order";
+      const { error } = await supabase.rpc(fn as any, { _id: id });
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Đã đánh dấu hoàn thành");
+        await loadAllData();
+      }
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const submitFail = async () => {
@@ -113,6 +136,7 @@ export default function AdminPage() {
     toast.success("Đã đánh dấu thất bại + hoàn tiền cho user");
     setFailTarget(null);
     setReason("");
+    await loadAllData();
   };
 
   if (roleLoading) return <AppShell><div className="container py-10 text-center text-muted-foreground">Đang kiểm tra quyền...</div></AppShell>;
@@ -135,7 +159,7 @@ export default function AdminPage() {
               )}
               <span className="text-primary font-semibold">{formatVND(o.price)}</span>
               {!o.seen_by_admin && !settled && <Badge className="bg-warning text-warning-foreground gap-1"><Bell className="w-3 h-3" />MỚI</Badge>}
-              {o.status === "completed" && <Badge className="bg-success text-success-foreground"><CheckCircle2 className="w-3 h-3 mr-1" />Hoàn thành</Badge>}
+              {o.status === "completed" && <Badge className="bg-success/15 text-success border border-success/40"><CheckCircle2 className="w-3 h-3 mr-1" />Thành công</Badge>}
               {o.status === "failed" && <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Thất bại</Badge>}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
@@ -147,15 +171,15 @@ export default function AdminPage() {
           {!settled && (
             <div className="flex flex-col gap-1.5 shrink-0">
               {!o.seen_by_admin ? (
-                <Button size="sm" variant="outline" onClick={() => markSeen("robux", o.id)}>
-                  <Eye className="w-3 h-3 mr-1" /> Đã xem
+                <Button size="sm" variant="outline" onClick={() => markSeen("robux", o.id)} disabled={processingId === o.id}>
+                  <Eye className={`w-3 h-3 mr-1 ${processingId === o.id ? "animate-pulse" : ""}`} /> Đã xem
                 </Button>
               ) : (
-                <Button size="sm" className="bg-success hover:bg-success/90" onClick={() => complete("robux", o.id)}>
-                  <CheckCircle2 className="w-3 h-3 mr-1" /> Nạp thành công
+                <Button size="sm" className="bg-success/15 text-success border border-success/40 hover:bg-success/25" onClick={() => complete("robux", o.id)} disabled={processingId === o.id}>
+                  {processingId === o.id ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <CheckCircle2 className="w-3 h-3 mr-1" />} Thành công
                 </Button>
               )}
-              <Button size="sm" variant="destructive" onClick={() => setFailTarget({ kind: "robux", id: o.id })}>
+              <Button size="sm" variant="destructive" onClick={() => setFailTarget({ kind: "robux", id: o.id })} disabled={processingId === o.id}>
                 <XCircle className="w-3 h-3 mr-1" /> Thất bại
               </Button>
             </div>
@@ -181,7 +205,7 @@ export default function AdminPage() {
               )}
               <span className="text-primary font-semibold">{formatVND(o.price)}</span>
               {!o.seen_by_admin && !settled && <Badge className="bg-warning text-warning-foreground gap-1"><Bell className="w-3 h-3" />MỚI</Badge>}
-              {o.status === "completed" && <Badge className="bg-success text-success-foreground"><CheckCircle2 className="w-3 h-3 mr-1" />Hoàn thành</Badge>}
+              {o.status === "completed" && <Badge className="bg-success/15 text-success border border-success/40"><CheckCircle2 className="w-3 h-3 mr-1" />Thành công</Badge>}
               {o.status === "failed" && <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Thất bại</Badge>}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
@@ -194,15 +218,15 @@ export default function AdminPage() {
           {!settled && (
             <div className="flex flex-col gap-1.5 shrink-0">
               {!o.seen_by_admin ? (
-                <Button size="sm" variant="outline" onClick={() => markSeen("boost", o.id)}>
-                  <Eye className="w-3 h-3 mr-1" /> Đã xem
+                <Button size="sm" variant="outline" onClick={() => markSeen("boost", o.id)} disabled={processingId === o.id}>
+                  <Eye className={`w-3 h-3 mr-1 ${processingId === o.id ? "animate-pulse" : ""}`} /> Đã xem
                 </Button>
               ) : (
-                <Button size="sm" className="bg-success hover:bg-success/90" onClick={() => complete("boost", o.id)}>
-                  <CheckCircle2 className="w-3 h-3 mr-1" /> Hoàn thành
+                <Button size="sm" className="bg-success/15 text-success border border-success/40 hover:bg-success/25" onClick={() => complete("boost", o.id)} disabled={processingId === o.id}>
+                  {processingId === o.id ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <CheckCircle2 className="w-3 h-3 mr-1" />} Thành công
                 </Button>
               )}
-              <Button size="sm" variant="destructive" onClick={() => setFailTarget({ kind: "boost", id: o.id })}>
+              <Button size="sm" variant="destructive" onClick={() => setFailTarget({ kind: "boost", id: o.id })} disabled={processingId === o.id}>
                 <XCircle className="w-3 h-3 mr-1" /> Thất bại
               </Button>
             </div>

@@ -24,9 +24,9 @@ const Index = () => {
         <BoostingZone />
         <MiniGames />
 
-        <section className="container mx-auto px-4 py-10 sm:py-14">
-          <div className="grid lg:grid-cols-3 gap-4">
-            <Leaderboard />
+        <section className="container mx-auto px-4 py-10 sm:py-14 space-y-4">
+          <Leaderboard />
+          <div className="grid lg:grid-cols-2 gap-4">
             <RobuxOrders />
             <TransactionHistory />
           </div>
