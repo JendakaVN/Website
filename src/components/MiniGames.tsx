@@ -11,22 +11,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { playWinSound, playLoseSound } from "@/lib/sound";
 
 const SPIN_SEGMENTS = [
-  { mult: 0.8, label: "Chúc may mắn", color: "hsl(var(--muted))" },   // 1 → 0.8
+  { mult: 1, label: "Chúc may mắn", color: "hsl(var(--muted))" },   // 1 → 0.8
   { mult: 0.5, label: "x0.5", color: "hsl(var(--accent))" },
   { mult: 1, label: "x1", color: "hsl(var(--primary))" },
-  { mult: 1.2, label: "x1.2", color: "hsl(var(--success))" },         // 1.5 → 1.2
+  { mult: 2.2, label: "x2.2", color: "hsl(var(--success))" },         // 1.5 → 1.2
   { mult: 1.5, label: "x1.5", color: "hsl(var(--warning))" },         // 2 → 1.5
   { mult: 0, label: "Mất lượt", color: "hsl(var(--destructive))" },
-  { mult: 1.5, label: "x1.5", color: "hsl(var(--primary-glow))" },   // 1.8 → 1.5
-  { mult: 0.7, label: "x0.7", color: "hsl(var(--accent))" },          // 0.8 → 0.7
+  { mult: 2, label: "x2", color: "hsl(var(--primary-glow))" },   // 1.8 → 1.5
+  { mult: 1.7, label: "x1.7", color: "hsl(var(--accent))" },          // 0.8 → 0.7
 ];
 
 const BOX_ITEMS = [
-  { mult: 1.5, label: "💎 Kim cương", rarity: "Hiếm" },        // 2 → 1.5
-  { mult: 1.2, label: "✨ Pha lê", rarity: "Thường" },         // 1.5 → 1.2
-  { mult: 0.5, label: "💰 Túi vàng", rarity: "Thường" },
+  { mult: 2.5, label: "💎 Kim cương", rarity: "Hiếm" }, 
+  { mult: 2, label: "✨ Pha lê", rarity: "Thường" },  
+  { mult: 1.5, label: "💰 Túi vàng", rarity: "Thường" },
   { mult: 0, label: "❌ Hộp rỗng", rarity: "Trượt" },
-  { mult: 2.2, label: "🎁 Báu vật", rarity: "Huyền thoại" },  // 2.5 → 2.2
+  { mult: 3, label: "🎁 Báu vật", rarity: "Huyền thoại" }, 
   { mult: 0, label: "💸 Cát bụi", rarity: "Trượt" },
 ];
 
@@ -37,10 +37,10 @@ interface ResultPopup {
   amount: number;
 }
 
-// ===== Win-rate controller: target ~2 thắng / 3 thua (40%) trên 5 lượt gần nhất, áp dụng cho TẤT CẢ mini game =====
+// ===== Win-rate controller: target 45% (9 thắng / 20 lượt) trên 20 lượt gần nhất, áp dụng cho TẤT CẢ mini game =====
 const HISTORY_KEY = "mg_history_v1";
-const WINDOW_SIZE = 5;
-const TARGET_WINS = 2;
+const WINDOW_SIZE = 20;
+const TARGET_WINS = 9;
 
 function getHistory(): boolean[] {
   try {
@@ -67,7 +67,7 @@ function decideWin(): boolean {
   const remaining = WINDOW_SIZE - h.length;
   const winsNeeded = TARGET_WINS - wins;
   if (winsNeeded > remaining) return true;
-  // Còn lại theo xác suất 40%
+  // Còn lại theo xác suất 45%
   return Math.random() < TARGET_WINS / WINDOW_SIZE;
 }
 
@@ -167,13 +167,33 @@ export function MiniGames() {
   const spin = async () => {
     if (!ensure(bet1)) return;
     setBusy("spin");
-    const idx = Math.floor(Math.random() * SPIN_SEGMENTS.length);
+
+    // Logic thao túng: Quyết định thắng hay thua trước khi quay
+    const shouldWin = decideWin();
+    
+    // Phân loại các ô để chọn
+    const winIndices = SPIN_SEGMENTS.map((s, i) => s.mult > 1 ? i : -1).filter(i => i !== -1);
+    const lossIndices = SPIN_SEGMENTS.map((s, i) => s.mult <= 1 ? i : -1).filter(i => i !== -1);
+    
+    // Chọn index dựa trên quyết định của "nhà cái"
+    let idx;
+    if (shouldWin && winIndices.length > 0) {
+      idx = winIndices[Math.floor(Math.random() * winIndices.length)];
+    } else {
+      idx = lossIndices[Math.floor(Math.random() * lossIndices.length)];
+    }
+
     const seg = SPIN_SEGMENTS[idx];
     const reward = Math.round(bet1 * seg.mult);
     const segAngle = 360 / SPIN_SEGMENTS.length;
-    // Mũi tên ở 90° (bên phải)
-    const target = 360 * 6 + (90 - (idx * segAngle + segAngle / 2) + 360) % 360;
+
+    // Tính toán góc quay: Quay ít nhất 6 vòng + góc tới ô mục tiêu
+    // Thêm một chút random (-segAngle/3 đến segAngle/3) để kim không dừng chính giữa ô, trông thật hơn
+    const randomOffset = (Math.random() - 0.5) * (segAngle * 0.7);
+    const target = (360 * 8) + (90 - (idx * segAngle + segAngle / 2) + 360) % 360 + randomOffset;
+    
     setSpinAngle(target);
+
     await new Promise((r) => setTimeout(r, 3200));
     try {
       await play(user!.id, "spin", bet1, reward, seg.label);
@@ -189,7 +209,19 @@ export function MiniGames() {
     setBusy("box");
     setBoxOpening(true);
     setBoxIdx(null);
-    const idx = Math.floor(Math.random() * BOX_ITEMS.length);
+
+    // Logic thao túng cho Hộp
+    const shouldWin = decideWin();
+    const winIndices = BOX_ITEMS.map((b, i) => b.mult > 1 ? i : -1).filter(i => i !== -1);
+    const lossIndices = BOX_ITEMS.map((b, i) => b.mult <= 1 ? i : -1).filter(i => i !== -1);
+
+    let idx;
+    if (shouldWin && winIndices.length > 0) {
+      idx = winIndices[Math.floor(Math.random() * winIndices.length)];
+    } else {
+      idx = lossIndices[Math.floor(Math.random() * lossIndices.length)];
+    }
+
     const item = BOX_ITEMS[idx];
     await new Promise((r) => setTimeout(r, 1400));
     setBoxIdx(idx);
@@ -214,11 +246,29 @@ export function MiniGames() {
     }, 90);
     await new Promise((r) => setTimeout(r, 1400));
     clearInterval(tick);
-    const a = 1 + Math.floor(Math.random() * 6);
-    const b = 1 + Math.floor(Math.random() * 6);
+
+    // Logic thao túng cho Xúc xắc
+    const shouldWin = decideWin();
+    let a, b, sum;
+
+    // Hàm kiểm tra xem một cặp xúc xắc có phải là "thắng" không (mult > 1)
+    const isWin = (s: number) => s >= 7; 
+
+    // Tìm kết quả phù hợp
+    let attempts = 0;
+    do {
+      a = 1 + Math.floor(Math.random() * 6);
+      b = 1 + Math.floor(Math.random() * 6);
+      sum = a + b;
+      attempts++;
+      // Nếu decideWin bảo thắng mà quay ra thua (hoặc ngược lại), thì quay lại 
+      // (Giới hạn 50 lần thử để tránh lặp vô tận, mặc dù xác suất đó gần như bằng 0)
+    } while (isWin(sum) !== shouldWin && attempts < 50);
+
     setDiceRoll([a, b]);
     setDiceRolling(false);
-    const sum = a + b;
+    sum = a + b;
+
     const mult = sum >= 12 ? 3 : sum === 11 ? 2 : sum >= 9 ? 1.5 : sum >= 7 ? 1.1 : sum >= 5 ? 0.5 : 0;
     const reward = Math.round(bet3 * mult);
     await new Promise((r) => setTimeout(r, 400));
@@ -295,21 +345,46 @@ export function MiniGames() {
                 {SPIN_SEGMENTS.map((s, i) => (
                   <div
                     key={i}
-                    className="absolute top-1/2 left-1/2 origin-left text-[10px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] tracking-tight whitespace-nowrap"
-                    style={{ transform: `rotate(${i * segAngle + segAngle / 2}deg) translateX(18px)` }}
+                    className={`absolute top-1/2 left-1/2 origin-left font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,1)] tracking-tighter uppercase ${
+                      s.label === "Mất lượt" 
+                        ? "text-[9px] whitespace-nowrap" 
+                        : s.label === "Chúc may mắn" 
+                        ? "text-[10px] leading-[0.85]" 
+                        : "text-[12px] whitespace-nowrap"
+                    }`}
+                    style={{ 
+                      transform: `rotate(${i * segAngle + segAngle / 2 - 90}deg) translateX(${
+                        s.label === "Chúc may mắn" || s.label === "Mất lượt" ? "22px" : 
+                        (s.label === "x2" || s.label === "x1.7") ? "46px" : 
+                        (s.label === "x1") ? "43px" : 
+                        (s.label === "x2.2") ? "35px" : 
+                        "38px"
+                      }) translateY(${
+                        s.label === "x0.5" || s.label === "x1" ? "-3px" :
+                        s.label === "Mất lượt" ? "3px" :
+                        "0px"
+                      })` 
+                    }}
                   >
-                    {s.label.length > 9 ? s.label.slice(0, 9) : s.label}
+                    {s.label === "Chúc may mắn" ? (
+                      <div className="flex flex-col">
+                        <span className="pl-2">CHÚC MAY</span>
+                        <span className="pl-8 text-[11.5px] mt-1">MẮN</span>
+                      </div>
+                    ) : (
+                      s.label
+                    )}
                   </div>
                 ))}
               </div>
               {/* center hub */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-gradient-primary border-2 border-background shadow-glow z-10" />
               {/* pointer */}
-              <ChevronRight className="absolute -right-5 top-1/2 -translate-y-1/2 w-8 h-8 text-warning drop-shadow-lg z-10" />
+              <ChevronRight className="absolute -right-5 top-1/2 -translate-y-1/2 w-8 h-8 text-warning drop-shadow-lg z-10 rotate-180" />
             </div>
           </div>
           <div className="text-[12px] text-muted-foreground text-center mt-1">
-            🎲 Chúc may mắn x0.8 · x0.5 · x1 · x1.2 · x1.5 · x1.5 · x0.7 · Mất lượt
+            🎲 Tỉ lệ: x2.2 · x2 · x1.7 · x1.5 · x1 · x0.5 · Chúc may mắn · Mất lượt
           </div>
           <BetInput bet={bet1} setBet={setBet1} />
           <Button onClick={spin} disabled={busy === "spin"} className="w-full bg-gradient-primary font-semibold">
@@ -337,7 +412,7 @@ export function MiniGames() {
           )}
         {/* Dòng luật chơi nằm trong khung */}
         <div className="text-[12px] text-muted-foreground mt-1 text-center">
-          🎁 Kim cương x1.5 · Pha lê x1.2 · Túi vàng x0.5 · Báu vật x2.2 · Hộp rỗng/Cát bụi (0)
+          🎁 Tỉ lệ: Báu vật x3 · Kim cương x2.5 · Pha lê x2 · Túi vàng x1.5 · Hộp rỗng / Cát bụi x0
           </div>
         </div>
         <BetInput bet={bet2} setBet={setBet2} />

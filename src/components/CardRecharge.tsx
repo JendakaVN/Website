@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { CreditCard, ArrowRight, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 // Schema validation
 const cardSchema = z.object({
@@ -137,7 +138,8 @@ function parseDiscountData(
 }
 
 export function CardRecharge() {
-  const { user, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
+  const navigate = useNavigate();
   const [network, setNetwork] = useState<Network>("Viettel");
   const [denom, setDenom] = useState<number | null>(null);
   const [serial, setSerial] = useState("");
@@ -212,6 +214,12 @@ export function CardRecharge() {
   };
 
   const handleRecharge = async () => {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để nạp thẻ");
+      navigate("/auth");
+      return;
+    }
+
     // Validate bằng Zod
     const validation = cardSchema.safeParse({ serial, pin });
     if (!validation.success) {

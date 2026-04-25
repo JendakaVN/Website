@@ -34,7 +34,7 @@ export default function Auth() {
     setForgotLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: `${window.location.origin}/auth/v1/callback`,
+        redirectTo: `https://www.jendakavn.dpdns.org/reset-password`,
       });
       if (error) throw error;
       toast.success("Đã gửi liên kết đặt lại mật khẩu vào email!");
@@ -52,7 +52,7 @@ export default function Auth() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/v1/callback`,
+          redirectTo: `https://www.jendakavn.dpdns.org/auth/v1/callback`,
         },
       });
       if (error) throw error;
@@ -76,7 +76,7 @@ export default function Auth() {
           email: form.email,
           password: form.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/v1/callback`,
+            emailRedirectTo: `https://www.jendakavn.dpdns.org/auth/v1/callback`,
             data: { display_name: form.displayName },
           },
         });
