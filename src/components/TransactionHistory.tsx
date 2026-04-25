@@ -43,17 +43,17 @@ export function TransactionHistory() {
   }, [user]);
 
   return (
-    <div className="glass-card p-5 sm:p-6">
+    <div className="glass-card p-5 sm:p-6 flex flex-col h-[450px]">
       <div className="flex items-center gap-2 mb-4">
         <History className="w-5 h-5 text-primary" />
         <h3 className="font-display font-bold text-lg">Lịch sử giao dịch</h3>
       </div>
       {!user ? (
-        <p className="text-sm text-muted-foreground text-center py-6">Đăng nhập để xem lịch sử của bạn.</p>
+        <p className="text-sm text-muted-foreground text-center py-6 flex-1 flex items-center justify-center">Đăng nhập để xem lịch sử của bạn.</p>
       ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">Chưa có giao dịch nào.</p>
+        <p className="text-sm text-muted-foreground text-center py-6 flex-1 flex items-center justify-center">Chưa có giao dịch nào.</p>
       ) : (
-        <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+        <div className="space-y-2 flex-1 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-primary/20 [&::-webkit-scrollbar-thumb]:rounded-full">
           {items.map((t) => {
             const positive = t.amount >= 0;
             return (

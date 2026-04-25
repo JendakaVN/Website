@@ -38,15 +38,15 @@ export function RobuxOrders() {
   if (!user) return null;
 
   return (
-    <div className="glass-card p-5 sm:p-6">
+    <div className="glass-card p-5 sm:p-6 flex flex-col h-[450px]">
       <div className="flex items-center gap-2 mb-4">
         <ShoppingBag className="w-5 h-5 text-accent" />
         <h3 className="font-display font-bold text-lg">Đơn Robux của bạn</h3>
       </div>
       {orders.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">Chưa có đơn nào.</p>
+        <p className="text-sm text-muted-foreground text-center py-6 flex-1 flex items-center justify-center">Chưa có đơn nào.</p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 flex-1 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-accent/20 [&::-webkit-scrollbar-thumb]:rounded-full">
           {orders.map((o) => {
             const s = o.status;
             const Icon = s === "completed" ? CheckCircle2 : s === "failed" ? XCircle : Loader2;
@@ -56,7 +56,7 @@ export function RobuxOrders() {
                 <Icon className={`w-5 h-5 ${cls}`} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold">{o.package_robux.toLocaleString()} Robux</div>
-                  <div className="text-[11px] text-muted-foreground truncate">@{o.roblox_username}</div>
+                  <div className="text-[11px] text-muted-foreground truncate">{o.roblox_username}</div>
                 </div>
                 <div className="text-sm font-semibold text-primary">{formatVND(o.price)}</div>
               </div>

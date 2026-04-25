@@ -91,7 +91,7 @@ export default function MyRobuxOrders() {
                         <span className="font-semibold">{o.package_robux.toLocaleString()} Robux</span>
                         <span className="font-bold text-primary">{formatVND(o.price)}</span>
                       </div>
-                      <div className="text-xs text-muted-foreground truncate">@{o.roblox_username}</div>
+                      <div className="text-xs text-muted-foreground truncate">{o.roblox_username}</div>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                         <Badge variant={o.seen_by_admin ? "default" : "outline"} className="text-[10px] gap-1">
                           <Eye className="w-3 h-3" />

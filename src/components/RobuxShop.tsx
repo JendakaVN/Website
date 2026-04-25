@@ -93,14 +93,13 @@ export function RobuxShop() {
                   // Chỉ giữ lại chữ cái, số, _ và @
                   val = val.replace(/[^A-Za-z0-9_@]/g, '');
     
-                  // Nếu có @ không nằm ở đầu, xóa nó đi
-                  if (val.indexOf('@') > 0) {
-                    val = val.replace(/@/g, '');
-                  }
+                  // Xóa tất cả @ để chuẩn hóa, sau đó thêm lại duy nhất 1 cái ở đầu
+                  const clean = val.replace(/@/g, '');
     
-                  // Nếu chưa có @ ở đầu và người dùng đã gõ ít nhất 1 ký tự, tự động thêm @ vào đầu
-                  if (val.length > 0 && !val.startsWith('@')) {
-                    val = '@' + val;
+                  if (clean.length > 0) {
+                    val = '@' + clean;
+                  } else {
+                    val = val.includes('@') ? '@' : '';
                   }
     
                   // Giới hạn độ dài tối đa 21 ký tự (bao gồm @)

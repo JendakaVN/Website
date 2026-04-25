@@ -1,15 +1,18 @@
+import { Suspense, lazy } from "react";
 import { Header } from "@/components/Header";
 import { TransactionTicker } from "@/components/TransactionTicker";
 import { Hero } from "@/components/Hero";
 import { CardRecharge } from "@/components/CardRecharge";
 import { RobuxShop } from "@/components/RobuxShop";
-import { GamepassShop } from "@/components/GamepassShop";
-import { MiniGames } from "@/components/MiniGames";
-import { BoostingZone } from "@/components/BoostingZone";
-import { Leaderboard } from "@/components/Leaderboard";
-import { TransactionHistory } from "@/components/TransactionHistory";
-import { RobuxOrders } from "@/components/RobuxOrders";
 import { Link } from 'react-router-dom';
+import { Skeleton } from "@/components/ui/skeleton";
+
+const GamepassShop = lazy(() => import("@/components/GamepassShop").then(m => ({ default: m.GamepassShop })));
+const MiniGames = lazy(() => import("@/components/MiniGames").then(m => ({ default: m.MiniGames })));
+const BoostingZone = lazy(() => import("@/components/BoostingZone").then(m => ({ default: m.BoostingZone })));
+const Leaderboard = lazy(() => import("@/components/Leaderboard").then(m => ({ default: m.Leaderboard })));
+const TransactionHistory = lazy(() => import("@/components/TransactionHistory").then(m => ({ default: m.TransactionHistory })));
+const RobuxOrders = lazy(() => import("@/components/RobuxOrders").then(m => ({ default: m.RobuxOrders })));
 
 const Index = () => {
   return (
@@ -20,15 +23,19 @@ const Index = () => {
         <Hero />
         <CardRecharge />
         <RobuxShop />
-        <GamepassShop />
-        <BoostingZone />
-        <MiniGames />
+        <Suspense fallback={<div className="container p-10"><Skeleton className="h-40 w-full" /></div>}>
+          <GamepassShop />
+          <BoostingZone />
+          <MiniGames />
+        </Suspense>
 
-        <section className="container mx-auto px-4 py-10 sm:py-14 space-y-4">
-          <Leaderboard />
-          <div className="grid lg:grid-cols-2 gap-4">
-            <RobuxOrders />
-            <TransactionHistory />
+        <section className="container mx-auto px-4 py-10 sm:py-14">
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
+            <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+              <Leaderboard />
+              <RobuxOrders />
+              <TransactionHistory />
+            </Suspense>
           </div>
           <div className="mt-4">
             <Link to="/partner-form" className="text-blue-500 underline">

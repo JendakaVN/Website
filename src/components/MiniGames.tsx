@@ -319,12 +319,12 @@ export function MiniGames() {
 
       <div className="text-center mb-8 relative">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-warning/10 border border-warning/30 text-xs font-semibold text-warning mb-3">
-          <Sparkles className="w-3.5 h-3.5 animate-pulse" /> Tỉ lệ thưởng cực đỉnh — thắng x5!
+          <Sparkles className="w-3.5 h-3.5 animate-pulse" /> Tỉ lệ thưởng cực đỉnh — thắng x3!
         </div>
         <h2 className="text-3xl sm:text-5xl font-display font-bold mb-2">
           Mini <span className="shimmer-text">Game</span>
         </h2>
-        <p className="text-muted-foreground text-sm sm:text-base">Quay số · Mở hộp · Đổ xúc xắc — thưởng tới x5 lần cược!</p>
+        <p className="text-muted-foreground text-sm sm:text-base">Quay số · Mở hộp · Đổ xúc xắc — thưởng tới x3 lần cược!</p>
       </div>
 
       <div className="grid md:grid-cols-3 gap-4 max-w-6xl mx-auto relative">

@@ -76,7 +76,7 @@ export default function AdminPage() {
     const ch1 = supabase.channel("admin-robux")
       .on("postgres_changes", { event: "*", schema: "public", table: "robux_orders" }, (p) => {
         if (p.eventType === "INSERT") {
-          toast.info(`🔔 Đơn Robux mới từ @${(p.new as RobuxOrder).roblox_username}`);
+          toast.info(`🔔 Đơn Robux mới từ ${(p.new as RobuxOrder).roblox_username}`);
         }
         loadAllData();
       })
@@ -163,7 +163,7 @@ export default function AdminPage() {
               {o.status === "failed" && <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Thất bại</Badge>}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              User: <span className="font-semibold text-foreground">{profilesMap[o.user_id] ?? o.user_id.slice(0, 8)}</span> · Roblox: @{o.roblox_username}
+              User: <span className="font-semibold text-foreground">{profilesMap[o.user_id] ?? o.user_id.slice(0, 8)}</span> · Roblox: {o.roblox_username}
             </div>
             <div className="text-[11px] text-muted-foreground">{new Date(o.created_at).toLocaleString("vi-VN")}</div>
             {o.failure_reason && <div className="text-xs text-destructive mt-1">Lý do: {o.failure_reason}</div>}
