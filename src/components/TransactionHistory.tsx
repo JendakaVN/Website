@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatVND } from "@/data/discount";
-import { History, ArrowDown, ArrowUp } from "lucide-react";
+import { History, ArrowDown, ArrowUp, Loader2 } from "lucide-react";
 
 interface Tx {
   id: string;
@@ -23,10 +23,12 @@ const LABELS: Record<string, string> = {
 export function TransactionHistory() {
   const { user } = useAuth();
   const [items, setItems] = useState<Tx[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     const load = async () => {
+      setIsLoading(true);
       const { data } = await supabase
         .from("transactions")
         .select("id,type,amount,description,created_at")
@@ -34,6 +36,7 @@ export function TransactionHistory() {
         .order("created_at", { ascending: false })
         .limit(15);
       setItems((data as Tx[]) ?? []);
+      setIsLoading(false);
     };
     load();
     const ch = supabase.channel("hist")
@@ -50,6 +53,10 @@ export function TransactionHistory() {
       </div>
       {!user ? (
         <p className="text-sm text-muted-foreground text-center py-6 flex-1 flex items-center justify-center">Đăng nhập để xem lịch sử của bạn.</p>
+      ) : isLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-primary/50" />
+        </div>
       ) : items.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-6 flex-1 flex items-center justify-center">Chưa có giao dịch nào.</p>
       ) : (

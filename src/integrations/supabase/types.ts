@@ -127,6 +127,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          background_url: string | null
           balance: number
           created_at: string
           display_name: string
@@ -135,6 +136,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          background_url?: string | null
           balance?: number
           created_at?: string
           display_name: string
@@ -143,6 +145,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          background_url?: string | null
           balance?: number
           created_at?: string
           display_name?: string

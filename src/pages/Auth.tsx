@@ -52,7 +52,7 @@ export default function Auth() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `https://www.jendakavn.dpdns.org/auth/v1/callback`,
+          redirectTo: `https://www.jendakavn.dpdns.org`,
         },
       });
       if (error) throw error;
@@ -76,7 +76,7 @@ export default function Auth() {
           email: form.email,
           password: form.password,
           options: {
-            emailRedirectTo: `https://www.jendakavn.dpdns.org/auth/v1/callback`,
+            emailRedirectTo: `https://www.jendakavn.dpdns.org`,
             data: { display_name: form.displayName },
           },
         });

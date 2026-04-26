@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { Header } from "@/components/Header";
+import { AppShell } from "@/components/AppShell";
 import { TransactionTicker } from "@/components/TransactionTicker";
 import { Hero } from "@/components/Hero";
 import { CardRecharge } from "@/components/CardRecharge";
@@ -16,10 +16,8 @@ const RobuxOrders = lazy(() => import("@/components/RobuxOrders").then(m => ({ d
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
+    <AppShell>
       <TransactionTicker />
-      <main className="flex-1">
         <Hero />
         <CardRecharge />
         <RobuxShop />
@@ -43,12 +41,7 @@ const Index = () => {
             </Link>
           </div>
         </section>
-      </main>
-
-      <footer className="border-t border-border/40 py-6 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Shop Jendaka — Nạp thẻ & Robux uy tín. Mọi giao dịch tự động 24/7.
-      </footer>
-    </div>
+    </AppShell>
   );
 };
 
