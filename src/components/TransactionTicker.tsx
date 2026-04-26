@@ -40,30 +40,27 @@ export function TransactionTicker() {
     const load = async () => {
       const { data: txs } = await supabase
         .from("transactions")
-        .select("id,amount,user_id,created_at")
+        .select(`
+          id,
+          amount,
+          created_at,
+          profiles!inner (display_name)
+        `)
         .eq("status", "completed")
         .eq("type", "card_recharge")
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(7);
 
       if (!txs || txs.length === 0) {
         if (cacheRef.current.length > 0) setItems(cacheRef.current);
         return;
       }
 
-      const userIds = Array.from(new Set(txs.map((t: any) => t.user_id)));
-      const { data: profs } = await supabase
-        .from("profiles")
-        .select("id,display_name")
-        .in("id", userIds);
-      const nameMap = new Map<string, string>();
-      (profs ?? []).forEach((p: any) => nameMap.set(p.id, p.display_name));
-
       const merged: TickerItem[] = txs.map((t: any) => ({
         id: t.id,
         amount: t.amount,
         created_at: t.created_at,
-        display_name: nameMap.get(t.user_id) ?? "Ẩn danh",
+        display_name: t.profiles?.display_name ?? "Ẩn danh",
       }));
       cacheRef.current = merged;
       setItems(merged);

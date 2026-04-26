@@ -24,6 +24,7 @@ interface RobuxOrder {
   seen_by_admin: boolean;
   failure_reason: string | null;
   created_at: string;
+  profiles?: { display_name: string };
 }
 interface BoostOrder {
   id: string;
@@ -36,6 +37,7 @@ interface BoostOrder {
   seen_by_admin: boolean;
   failure_reason: string | null;
   created_at: string;
+  profiles?: { display_name: string };
 }
 
 export default function AdminPage() {
@@ -45,27 +47,23 @@ export default function AdminPage() {
 
   const [robux, setRobux] = useState<RobuxOrder[]>([]);
   const [boost, setBoost] = useState<BoostOrder[]>([]);
-  const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
   const [failTarget, setFailTarget] = useState<{ kind: "robux" | "boost"; id: string } | null>(null);
   const [reason, setReason] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const loadAllData = async () => {
     const [r, b] = await Promise.all([
-      supabase.from("robux_orders").select("*").order("created_at", { ascending: false }).limit(100),
-      supabase.from("boosting_orders").select("*").order("created_at", { ascending: false }).limit(100),
+      supabase.from("robux_orders").select("*, profiles(display_name)").order("created_at", { ascending: false }).limit(100),
+      supabase.from("boosting_orders").select("*, profiles(display_name)").order("created_at", { ascending: false }).limit(100),
     ]);
-    const robuxList = (r.data as RobuxOrder[]) ?? [];
-    const boostList = (b.data as BoostOrder[]) ?? [];
-    setRobux(robuxList);
-    setBoost(boostList);
-    const uids = Array.from(new Set([...robuxList, ...boostList].map((x) => x.user_id)));
-    if (uids.length) {
-      const { data: profs } = await supabase.from("profiles").select("id,display_name").in("id", uids);
-      const map: Record<string, string> = {};
-      (profs ?? []).forEach((p: any) => { map[p.id] = p.display_name; });
-      setProfilesMap(map);
-    }
+    setRobux((r.data as unknown as RobuxOrder[]) ?? []);
+    setBoost((b.data as unknown as BoostOrder[]) ?? []);
+  };
+
+  const getDisplayName = (profiles: any) => {
+    if (!profiles) return null;
+    if (Array.isArray(profiles)) return profiles[0]?.display_name;
+    return profiles.display_name;
   };
 
   useEffect(() => {
@@ -163,7 +161,7 @@ export default function AdminPage() {
               {o.status === "failed" && <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Thất bại</Badge>}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              User: <span className="font-semibold text-foreground">{profilesMap[o.user_id] ?? o.user_id.slice(0, 8)}</span> · Roblox: {o.roblox_username}
+              User: <span className="font-semibold text-foreground">{getDisplayName(o.profiles) ?? o.user_id.slice(0, 8)}</span> · Roblox: {o.roblox_username}
             </div>
             <div className="text-[11px] text-muted-foreground">{new Date(o.created_at).toLocaleString("vi-VN")}</div>
             {o.failure_reason && <div className="text-xs text-destructive mt-1">Lý do: {o.failure_reason}</div>}
@@ -209,7 +207,7 @@ export default function AdminPage() {
               {o.status === "failed" && <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Thất bại</Badge>}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              User: <span className="font-semibold text-foreground">{profilesMap[o.user_id] ?? o.user_id.slice(0, 8)}</span>
+              User: <span className="font-semibold text-foreground">{getDisplayName(o.profiles) ?? o.user_id.slice(0, 8)}</span>
             </div>
             {o.note && <div className="text-xs italic text-muted-foreground mt-1">"{o.note}"</div>}
             <div className="text-[11px] text-muted-foreground">{new Date(o.created_at).toLocaleString("vi-VN")}</div>

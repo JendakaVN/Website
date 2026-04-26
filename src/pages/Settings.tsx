@@ -25,13 +25,18 @@ export default function SettingsPage() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [countdown, setCountdown] = useState(0);
+  const isInitialized = useRef(false);
   const queryClient = useQueryClient();
 
-  // Đồng bộ dữ liệu khi profile thay đổi (Sửa lỗi đổi tên không hiện)
+  // Khởi tạo giá trị từ profile. Dùng isInitialized để tránh việc 
+  // dữ liệu từ DB tự động ghi đè lên những gì người dùng đang nhập vào ô link.
   useEffect(() => {
-    if (profile) {
-      setName(profile.display_name || "");
-      setBgUrl((profile as any).background_url || "");
+    if (profile && !isInitialized.current) {
+      const dbName = profile.display_name || "";
+      const dbBg = (profile as any).background_url || "";
+      setName(dbName);
+      setBgUrl(dbBg);
+      isInitialized.current = true;
     }
   }, [profile]);
 
@@ -62,12 +67,59 @@ export default function SettingsPage() {
 
   const saveBg = async () => {
     setSavingBg(true);
-    const { error } = await supabase.from("profiles").update({ background_url: bgUrl.trim() }).eq("id", user.id);
+    const oldUrl = (profile as any)?.background_url;
+    const newUrl = bgUrl?.trim() || "";
+
+    // Nếu link mới khác link cũ và ảnh cũ là ảnh được lưu trên Storage (có chứa 'backgrounds/')
+    // Chúng ta tiến hành xóa file cũ đi để tiết kiệm dung lượng
+    if (oldUrl && oldUrl !== newUrl && oldUrl.includes("backgrounds/")) {
+      const oldPath = oldUrl.split("backgrounds/")[1];
+      if (oldPath) {
+        await supabase.storage.from("backgrounds").remove([oldPath]);
+      }
+    }
+
+    // Cập nhật URL mới (có thể là link ngoài hoặc link vừa upload) vào Database
+    const { error } = await supabase.from("profiles").update({ background_url: newUrl }).eq("id", user.id);
     setSavingBg(false);
+
     if (error) return toast.error(error.message);
     toast.success("Đã cập nhật hình nền");
     await refreshProfile();
     queryClient.invalidateQueries(); // Refresh lại giao diện
+  };
+
+  // Hàm hỗ trợ chuyển đổi ảnh sang WebP để giảm dung lượng
+  const convertToWebP = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject(new Error("Không thể tạo context canvas"));
+          ctx.drawImage(img, 0, 0);
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) return reject(new Error("Chuyển đổi WebP thất bại"));
+              const webpFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+                type: "image/webp",
+              });
+              resolve(webpFile);
+            },
+            "image/webp",
+            0.8 // Chất lượng nén 80%
+          );
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,14 +130,37 @@ export default function SettingsPage() {
     
     setUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${user.id}/${Math.random()}.${fileExt}`;
+      let fileToUpload = file;
+      let fileExt = file.name.split('.').pop()?.toLowerCase();
 
+      // Nếu không phải ảnh động (GIF), tiến hành chuyển sang WebP
+      if (file.type !== "image/gif" && file.type.startsWith("image/")) {
+        fileToUpload = await convertToWebP(file);
+        fileExt = "webp";
+      }
+
+      // 1. Xóa ảnh cũ trên Storage nếu tồn tại để tiết kiệm dung lượng
+      const oldUrl = (profile as any)?.background_url;
+      if (oldUrl && oldUrl.includes("backgrounds/")) {
+        const oldPath = oldUrl.split("backgrounds/")[1];
+        if (oldPath) {
+          await supabase.storage.from("backgrounds").remove([oldPath]);
+        }
+      }
+
+      // 2. Upload ảnh mới
+      const filePath = `${user.id}/${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage
         .from('backgrounds')
-        .upload(filePath, file);
+        .upload(filePath, fileToUpload);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Storage Error:", uploadError);
+        if (uploadError.message.includes("Object not found")) {
+          throw new Error("Chưa tạo Bucket 'backgrounds' trên Supabase.");
+        }
+        throw uploadError;
+      }
 
       const { data: { publicUrl } } = supabase.storage
         .from('backgrounds')
@@ -188,6 +263,15 @@ export default function SettingsPage() {
                 </Button>
               </div>
             </div>
+
+            {/* Xem trước hình nền để biết link có hoạt động hay không */}
+            {bgUrl && (
+              <div className="mt-2 rounded-lg border border-border/50 overflow-hidden bg-secondary/20 aspect-video relative group">
+                <img src={bgUrl} alt="Preview" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-semibold">Xem trước hiển thị</div>
+              </div>
+            )}
+
             <Button onClick={saveBg} disabled={savingBg} variant="outline" className="w-full sm:w-auto">
               <Save className="w-4 h-4 mr-2" /> Lưu hình nền
             </Button>

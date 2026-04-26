@@ -18,7 +18,8 @@ export function Leaderboard() {
     queryFn: async () => {
       const { data } = await supabase.from("profiles").select("id,display_name,total_deposited").order("total_deposited", { ascending: false }).limit(10);
       return (data as Row[]) || [];
-    }
+    },
+    staleTime: 30000, // Cache dữ liệu trong 30 giây
   });
 
   // Tương tự cho monthly leaderboard...
@@ -31,7 +32,8 @@ export function Leaderboard() {
         return [];
       }
       return (data as Row[]) || [];
-    }
+    },
+    staleTime: 30000, // Cache dữ liệu trong 30 giây
   });
 
   useEffect(() => {
