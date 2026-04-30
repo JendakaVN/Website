@@ -20,12 +20,13 @@ interface Order {
 }
 
 export default function MyBoostingOrders() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [items, setItems] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) { navigate("/auth"); return; }
     const load = async () => {
       const { data } = await supabase
@@ -41,7 +42,7 @@ export default function MyBoostingOrders() {
       .on("postgres_changes", { event: "*", schema: "public", table: "boosting_orders", filter: `user_id=eq.${user.id}` }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [user, navigate]);
+  }, [user, navigate, authLoading]);
 
   const STATUS_LABEL: Record<string, string> = {
     pending: "Đang chờ",

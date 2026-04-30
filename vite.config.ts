@@ -29,19 +29,29 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
+        // ✅ Cách 1: Gộp tất cả làm 1 chunk (đơn giản nhất, không circular)
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            // Xử lý ưu tiên react và react-dom trước
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-              return 'vendor-react';
-            }
-            if (id.includes('axios') || id.includes('lodash') || id.includes('@tanstack')) {
-              return 'vendor-utils';
-            }
-            // Trả về 'vendor' cho các node_modules còn lại
             return 'vendor';
           }
         }
+        
+        // ✅ Cách 2: Phân tách nhưng không gây circular (chỉ dùng 2 nhóm)
+        // manualChunks(id) {
+        //   if (id.includes('node_modules')) {
+        //     if (id.includes('react') || id.includes('react-dom')) {
+        //       return 'vendor-react';
+        //     }
+        //     return 'vendor';
+        //   }
+        // }
+        
+        // ✅ Cách 3: Giữ 3 nhóm nhưng tách React core hoàn toàn
+        // manualChunks: {
+        //   vendor: ['axios', 'lodash', '@tanstack/react-query', '@tanstack/query-core'],
+        //   'vendor-react': ['react', 'react-dom', 'react-router-dom', 'scheduler', '@remix-run/router'],
+        //   'vendor-utils': ['date-fns', 'clsx', 'tailwind-merge'],
+        // }
       },
     },
   },

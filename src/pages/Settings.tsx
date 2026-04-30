@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function SettingsPage() {
-  const { user, profile, refreshProfile, signOut } = useAuth();
+  const { user, profile, refreshProfile, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState(profile?.display_name ?? "");
   const [bgUrl, setBgUrl] = useState((profile as any)?.background_url ?? "");
@@ -50,10 +50,11 @@ export default function SettingsPage() {
     return () => clearInterval(timer);
   }, [countdown]);
 
-  if (!user) {
-    navigate("/auth");
-    return null;
-  }
+  useEffect(() => {
+    if (!loading && !user) navigate("/auth");
+  }, [user, loading, navigate]);
+
+  if (loading || !user) return null;
 
   const saveName = async () => {
     if (!name.trim()) return toast.error("Tên không được rỗng");
@@ -113,7 +114,7 @@ export default function SettingsPage() {
               resolve(webpFile);
             },
             "image/webp",
-            0.8 // Chất lượng nén 80%
+            0.9 // Chất lượng nén 90%
           );
         };
         img.onerror = (err) => reject(err);
@@ -126,15 +127,20 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    if (file.size > 5 * 1024 * 1024) return toast.error("Ảnh quá lớn (tối đa 5MB)");
+    if (file.size > 10 * 1024 * 1024) return toast.error("File quá lớn (tối đa 10MB)");
     
+    // Ràng buộc chỉ cho phép tệp hình ảnh tại client
+    if (!file.type.startsWith("image/")) {
+      return toast.error("Vui lòng chỉ tải lên tệp hình ảnh (.jpg, .png, .gif)");
+    }
+
     setUploading(true);
     try {
       let fileToUpload = file;
       let fileExt = file.name.split('.').pop()?.toLowerCase();
 
-      // Nếu không phải ảnh động (GIF), tiến hành chuyển sang WebP
-      if (file.type !== "image/gif" && file.type.startsWith("image/")) {
+      // Nếu không phải ảnh động (GIF), tiến hành chuyển sang WebP để tối ưu dung lượng
+      if (fileExt !== "gif") {
         fileToUpload = await convertToWebP(file);
         fileExt = "webp";
       }

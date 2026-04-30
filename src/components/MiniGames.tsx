@@ -11,14 +11,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { playWinSound, playLoseSound } from "@/lib/sound";
 
 const SPIN_SEGMENTS = [
-  { mult: 1, label: "Chúc may mắn", color: "hsl(var(--muted))" },   // 1 → 0.8
+  { mult: 0, label: "Chúc may mắn", color: "hsl(var(--muted))" },
   { mult: 0.5, label: "x0.5", color: "hsl(var(--accent))" },
   { mult: 1, label: "x1", color: "hsl(var(--primary))" },
-  { mult: 2.2, label: "x2.2", color: "hsl(var(--success))" },         // 1.5 → 1.2
-  { mult: 1.5, label: "x1.5", color: "hsl(var(--warning))" },         // 2 → 1.5
+  { mult: 2.2, label: "x2.2", color: "hsl(var(--success))" },
+  { mult: 1.5, label: "x1.5", color: "hsl(var(--warning))" },
   { mult: 0, label: "Mất lượt", color: "hsl(var(--destructive))" },
-  { mult: 2, label: "x2", color: "hsl(var(--primary-glow))" },   // 1.8 → 1.5
-  { mult: 1.7, label: "x1.7", color: "hsl(var(--accent))" },          // 0.8 → 0.7
+  { mult: 2, label: "x2", color: "hsl(var(--primary-glow))" },
+  { mult: 1.7, label: "x1.7", color: "hsl(var(--accent))" },
 ];
 
 const BOX_ITEMS = [
@@ -37,10 +37,10 @@ interface ResultPopup {
   amount: number;
 }
 
-// ===== Win-rate controller: target 45% (9 thắng / 20 lượt) trên 20 lượt gần nhất, áp dụng cho TẤT CẢ mini game =====
+// ===== Win-rate controller: target 55% (11 thắng / 9 thua) trên 20 lượt gần nhất, áp dụng cho TẤT CẢ mini game =====
 const HISTORY_KEY = "mg_history_v1";
 const WINDOW_SIZE = 20;
-const TARGET_WINS = 9;
+const TARGET_WINS = 11;
 
 function getHistory(): boolean[] {
   try {
@@ -186,11 +186,15 @@ export function MiniGames() {
     const seg = SPIN_SEGMENTS[idx];
     const reward = Math.round(bet1 * seg.mult);
     const segAngle = 360 / SPIN_SEGMENTS.length;
+    
+    // Tính vị trí tuyệt đối của ô mục tiêu (từ 0-359 độ)
+    const targetPos = (90 - (idx * segAngle + segAngle / 2) + 360) % 360;
+    // Tính quãng đường ngắn nhất để quay từ vị trí hiện tại đến ô mục tiêu
+    const distance = (targetPos - (spinAngle % 360) + 360) % 360;
 
-    // Tính toán góc quay: Quay ít nhất 6 vòng + góc tới ô mục tiêu
-    // Thêm một chút random (-segAngle/3 đến segAngle/3) để kim không dừng chính giữa ô, trông thật hơn
     const randomOffset = (Math.random() - 0.5) * (segAngle * 0.7);
-    const target = (360 * 8) + (90 - (idx * segAngle + segAngle / 2) + 360) % 360 + randomOffset;
+    // Góc mới = Góc hiện tại + 8 vòng quay + quãng đường tới ô mục tiêu
+    const target = spinAngle + (360 * 8) + distance + randomOffset;
     
     setSpinAngle(target);
 

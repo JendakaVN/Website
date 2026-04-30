@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Wallet, Gamepad2, LogOut, User as UserIcon, Sparkles, Menu,
-  Settings, History, ShoppingBag, Swords, Receipt, Shield
+  Settings, History, ShoppingBag, Swords, Receipt, Shield, Coins
 } from "lucide-react";
 import { formatVND } from "@/data/discount";
 import {
@@ -96,6 +96,10 @@ export function Header() {
                 <Wallet className="w-4 h-4 text-primary" />
                 <span className="font-semibold text-sm">{formatVND(profile?.balance ?? 0)}</span>
               </div>
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-warning/10 border border-warning/30">
+                <Coins className="w-4 h-4 text-warning" />
+                <span className="font-bold text-sm text-warning">{(profile as any)?.robux_balance || 0}</span>
+              </div>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -145,6 +149,10 @@ export function Header() {
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-secondary/60 border border-border/50 w-full">
             <Wallet className="w-4 h-4 text-primary" />
             <span className="font-semibold text-sm">Số dư: {formatVND(profile?.balance ?? 0)}</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-warning/10 border border-warning/30 w-full">
+            <Coins className="w-4 h-4 text-warning" />
+            <span className="font-bold text-sm text-warning">Robux: {(profile as any)?.robux_balance || 0}</span>
           </div>
         </div>
       )}

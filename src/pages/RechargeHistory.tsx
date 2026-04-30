@@ -19,13 +19,15 @@ interface Card {
 }
 
 export default function RechargeHistory() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [items, setItems] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) { navigate("/auth"); return; }
+
     (async () => {
       const { data } = await supabase
         .from("card_recharges")
@@ -35,7 +37,7 @@ export default function RechargeHistory() {
       setItems((data as Card[]) ?? []);
       setLoading(false);
     })();
-  }, [user, navigate]);
+  }, [user, navigate, authLoading]);
 
   return (
     <AppShell>

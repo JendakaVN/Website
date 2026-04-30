@@ -5,19 +5,31 @@ import { useAuth } from "@/context/AuthContext";
 // Hook xử lý Parallax toàn cục
 function useGlobalMouseParallax(intensity = 25) { 
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isLowPower, setIsLowPower] = useState(false);
 
   useEffect(() => {
-    // Đảm bảo không chạy trên mobile
-    if (window.innerWidth < 768) return;
+    // Kiểm tra xem người dùng có muốn giảm chuyển động không hoặc đang trên mobile
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+    
+    if (prefersReducedMotion || isMobile) {
+      setIsLowPower(true);
+      return;
+    }
 
     let rafId: number;
+    let lastUpdate = 0;
+    const fpsInterval = 1000 / 30; // Giới hạn 30 FPS
+
     const handleMouseMove = (e: MouseEvent) => {
-      // Sử dụng requestAnimationFrame để đảm bảo mượt mà 60fps và không block thread chính
       rafId = requestAnimationFrame(() => {
+        const now = performance.now();
+        if (now - lastUpdate < fpsInterval) return; // Bỏ qua nếu chưa đến khung hình tiếp theo
+        lastUpdate = now;
+
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;
         
-        // Tính toán độ lệch (ngược hướng chuột để tạo chiều sâu)
         const moveX = -(e.clientX - centerX) / intensity;
         const moveY = -(e.clientY - centerY) / intensity;
         
@@ -34,12 +46,12 @@ function useGlobalMouseParallax(intensity = 25) {
     };
   }, [intensity]);
 
-  return offset;
+  return { ...offset, isLowPower };
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { profile } = useAuth();
-  const { x, y } = useGlobalMouseParallax(15); // Tăng độ nhạy (intensity thấp hơn = di chuyển nhiều hơn)
+  const { x, y, isLowPower } = useGlobalMouseParallax(15); // Tăng độ nhạy (intensity thấp hơn = di chuyển nhiều hơn)
 
   // Đảm bảo lấy đúng background_url từ profile dù profile có thể đang load
   const rawUrl = profile ? (profile as any).background_url : null;
@@ -49,23 +61,33 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col relative overflow-x-hidden">
       {/* Lớp nền Parallax cố định cho toàn trang */}
-      <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden bg-[#020205]">
+      <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden bg-[#0a0b14]">
+        {/* Lớp Gradient tĩnh (Không di chuyển để giảm tải GPU) */}
         <div 
-          key={backgroundUrl} // Buộc React tạo lại phần tử khi URL đổi, giúp trình duyệt nạp ảnh mới ngay lập tức
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-700"
+          className="absolute inset-0 z-0 opacity-60"
           style={{ 
-            // Cấu trúc lớp: Lớp phủ tối -> Ảnh chính -> Lớp Gradient dự phòng
-            backgroundColor: '#0a0b14',
-            backgroundImage: hasBackground
-              ? `linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), url("${backgroundUrl}"), radial-gradient(circle at 50% 0%, #1e2a4a 0%, #0a0b14 100%)`
-              : `radial-gradient(circle at 50% 0%, #1e2a4a 0%, #0a0b14 100%)`,
-            // Tăng scale lên 1.15 để tránh lộ viền khi di chuyển parallax mạnh
-            transform: `translate3d(${x}px, ${y}px, 0) scale(1.15)`,
-            // Sử dụng transition cực ngắn để phản hồi nhanh với chuột, tránh cảm giác bị trễ (lì)
-            transition: 'transform 0.1s ease-out',
+            backgroundImage: `radial-gradient(circle at 50% 0%, #1e2a4a 0%, #0a0b14 100%)`
+          }} 
+        />
+        
+        {/* Lớp Ảnh nền hoặc Video nền */}
+        <div
+          key={backgroundUrl}
+          className={`absolute inset-0 transition-opacity duration-1000 ${hasBackground ? 'opacity-100' : 'opacity-0'}`}
+          style={{ 
+            transform: isLowPower ? 'none' : `translate3d(${x}px, ${y}px, 0) scale(1.1)`,
+            transition: isLowPower ? 'none' : 'transform 0.15s ease-out',
             willChange: 'transform',
           }}
-        />
+        >
+          {hasBackground && (
+            <div 
+              className="w-full h-full bg-cover bg-center bg-no-repeat"
+              style={{ backgroundImage: `url("${backgroundUrl}")` }}
+            />
+          )}
+          <div className="absolute inset-0 bg-black/60" />
+        </div>
       </div>
 
       <Header />

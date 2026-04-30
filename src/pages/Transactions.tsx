@@ -8,9 +8,12 @@ import { useEffect } from "react";
 const TransactionHistory = lazy(() => import("@/components/TransactionHistory").then(m => ({ default: m.TransactionHistory })));
 
 export default function TransactionsPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
-  useEffect(() => { if (!user) navigate("/auth"); }, [user, navigate]);
+
+  useEffect(() => {
+    if (!loading && !user) navigate("/auth");
+  }, [user, loading, navigate]);
 
   return (
     <AppShell>

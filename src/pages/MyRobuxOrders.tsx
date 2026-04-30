@@ -4,9 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
 import { formatVND } from "@/data/discount";
-import { ShoppingBag, CheckCircle2, XCircle, Loader2, Eye } from "lucide-react";
+import { ShoppingBag, CheckCircle2, XCircle, Loader2, Eye, Coins, ArrowRight, Gift } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 interface Order {
   id: string;
@@ -20,7 +21,7 @@ interface Order {
 }
 
 export default function MyRobuxOrders() {
-  const { user } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth(); // Destructure authLoading
   const navigate = useNavigate();
   const [items, setItems] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +30,9 @@ export default function MyRobuxOrders() {
   const firstLoad = useRef(true);
 
   useEffect(() => {
-    if (!user) { navigate("/auth"); return; }
+    if (authLoading) return; // Wait for authentication to complete
+    if (!user) { navigate("/auth"); return; } // Navigate to auth if user is not logged in after authLoading is false
+
     const load = async () => {
       const { data } = await supabase
         .from("robux_orders")
@@ -63,11 +66,37 @@ export default function MyRobuxOrders() {
       .on("postgres_changes", { event: "*", schema: "public", table: "robux_orders", filter: `user_id=eq.${user.id}` }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [user, navigate]);
+  }, [user, navigate, authLoading]); // Add authLoading to dependencies
 
   return (
     <AppShell>
       <div className="container mx-auto px-4 py-8 max-w-3xl">
+        {/* Khu vực rút Robux nổi bật */}
+        <div className="mb-8 p-6 rounded-2xl bg-gradient-to-br from-warning/20 via-primary/10 to-transparent border-2 border-warning/30 shadow-[0_0_20px_rgba(245,158,11,0.15)] relative overflow-hidden group">
+          <div className="absolute -right-8 -top-8 w-32 h-32 bg-warning/10 rounded-full blur-3xl group-hover:bg-warning/20 transition-all duration-500" />
+          <div className="relative flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-gold flex items-center justify-center shadow-glow shrink-0">
+                <Coins className="w-8 h-8 text-background animate-bounce" />
+              </div>
+              <div>
+                <div className="text-xs font-bold uppercase tracking-widest text-warning/80 mb-1 flex items-center gap-1">
+                  <Gift className="w-3 h-3" /> Robux từ Giveaway
+                </div>
+                <div className="text-3xl font-display font-black text-foreground">
+                  {(profile as any)?.robux_balance || 0} <span className="text-sm font-medium text-muted-foreground ml-1">Robux</span>
+                </div>
+              </div>
+            </div>
+            <Button 
+              onClick={() => navigate("/", { state: { withdrawMode: true } })}
+              className="w-full sm:w-auto bg-gradient-gold text-background font-bold h-12 px-8 shadow-glow-gold hover:scale-105 transition-all"
+            >
+              RÚT ROBUX NGAY <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </div>
+        </div>
+
         <div className="flex items-center gap-2 mb-6">
           <ShoppingBag className="w-6 h-6 text-accent" />
           <h1 className="text-2xl font-display font-bold">Đơn Robux của bạn</h1>
