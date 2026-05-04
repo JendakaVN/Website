@@ -6,16 +6,18 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
+    host: "0.0.0.0",
     port: 8080,
     hmr: {
       overlay: false,
+      clientPort: 443,
+      host: 'jendakavn.dpdns.org',
+      protocol: 'wss',
     },
     allowedHosts: [
       "www.jendakavn.dpdns.org",
       "jendakavn.dpdns.org",
-      "f415-14-191-104-70.ngrok-free.app",
-      "bd44-14-191-104-70.ngrok-free.app"
+      "all"
     ],
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
@@ -29,29 +31,27 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        // ✅ Cách 1: Gộp tất cả làm 1 chunk (đơn giản nhất, không circular)
-        manualChunks(id) {
+        manualChunks: (id) => {
           if (id.includes('node_modules')) {
+            // Tách React core để cache lâu dài vì ít thay đổi
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor-react';
+            }
+            // Tách các thư viện UI/Icons (thường là phần nặng nhất)
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+            // Tách Supabase
+            if (id.includes('@supabase')) {
+              return 'vendor-supabase';
+            }
+            // Các node_modules khác
             return 'vendor';
           }
-        }
-        
-        // ✅ Cách 2: Phân tách nhưng không gây circular (chỉ dùng 2 nhóm)
-        // manualChunks(id) {
-        //   if (id.includes('node_modules')) {
-        //     if (id.includes('react') || id.includes('react-dom')) {
-        //       return 'vendor-react';
-        //     }
-        //     return 'vendor';
-        //   }
-        // }
-        
-        // ✅ Cách 3: Giữ 3 nhóm nhưng tách React core hoàn toàn
-        // manualChunks: {
-        //   vendor: ['axios', 'lodash', '@tanstack/react-query', '@tanstack/query-core'],
-        //   'vendor-react': ['react', 'react-dom', 'react-router-dom', 'scheduler', '@remix-run/router'],
-        //   'vendor-utils': ['date-fns', 'clsx', 'tailwind-merge'],
-        // }
+        },
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
       },
     },
   },

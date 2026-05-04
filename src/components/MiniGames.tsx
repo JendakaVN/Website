@@ -84,19 +84,25 @@ function pushLocalPlay(p: Omit<LocalPlay, "id" | "at">) {
 }
 
 async function play(_uid: string, game: "spin" | "box" | "dice", bet: number, reward: number, outcome: string) {
-  const { error: e1 } = await supabase.rpc("adjust_balance", {
-    _delta: -bet,
+  // SECURITY WARNING: In a production environment, reward calculation MUST happen server-side.
+  // This client-side implementation is vulnerable to tampering.
+  // Recommendation: Create a single RPC like `handle_minigame_play` to process everything atomically.
+  
+  // Deduct bet
+  const { error: betError } = await supabase.rpc("adjust_balance", {
+    _delta: -Math.abs(bet), // Force negative to prevent "negative bet" exploits
     _type: "game_bet",
     _description: `Đặt cược ${game}`,
   });
-  if (e1) throw e1;
+  if (betError) throw betError;
+
   if (reward > 0) {
-    const { error: e2 } = await supabase.rpc("adjust_balance", {
+    const { error: winError } = await supabase.rpc("adjust_balance", {
       _delta: reward,
       _type: "game_win",
       _description: `Thắng ${game}: ${outcome}`,
     });
-    if (e2) throw e2;
+    if (winError) throw winError;
   }
   // Lưu lịch sử ván chơi vào localStorage thay vì cloud
   pushLocalPlay({ game, bet, reward, outcome });
@@ -117,11 +123,12 @@ function GameCard({ icon, title, color, children }: any) {
   );
 }
 
-function BetInput({ bet, setBet }: { bet: number; setBet: (n: number) => void }) {
+function BetInput({ id, bet, setBet }: { id: string; bet: number; setBet: (n: number) => void }) {
   return (
     <div className="space-y-2 mb-3">
-      <Label className="text-xs text-muted-foreground">Đặt cược (VNĐ)</Label>
+      <Label htmlFor={id} className="text-xs text-muted-foreground">Đặt cược (VNĐ)</Label>
       <Input
+        id={id}
         type="number"
         min={1000}
         step={1000}
@@ -165,6 +172,7 @@ export function MiniGames() {
   };
 
   const spin = async () => {
+    if (busy) return;
     if (!ensure(bet1)) return;
     setBusy("spin");
 
@@ -201,8 +209,9 @@ export function MiniGames() {
     await new Promise((r) => setTimeout(r, 3200));
     try {
       await play(user!.id, "spin", bet1, reward, seg.label);
-      pushHistory(reward > 0);
-      showResult(reward > 0, reward > 0 ? "Chiến thắng!" : "Tiếc quá!", `Vòng quay dừng ở: ${seg.label}`, reward);
+      const isWin = reward >= bet1;
+      pushHistory(reward > 0); // Giữ logic cũ cho tỉ lệ nhà cái (có tiền là tính lượt thắng)
+      showResult(isWin, isWin ? "Chiến thắng!" : "Tiếc quá!", `Vòng quay dừng ở: ${seg.label}`, reward);
       await refreshProfile();
     } catch (e: any) { toast.error(e.message); }
     setBusy(null);
@@ -301,7 +310,7 @@ export function MiniGames() {
       c: "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
     };
     return (
-      <div className={`relative w-16 h-16 rounded-2xl bg-gradient-to-br from-background to-secondary border-2 border-primary/60 shadow-glow ${rolling ? "animate-bounce" : ""}`}>
+      <div className={`relative w-16 h-16 rounded-2xl bg-gradient-to-br from-background to-secondary border-2 border-primary/60 shadow-md ${rolling ? "animate-bounce" : ""}`}>
         {dots[n].map((p, i) => (
           <div key={i} className={`absolute w-2.5 h-2.5 rounded-full bg-primary ${pos[p]}`} />
         ))}
@@ -323,10 +332,10 @@ export function MiniGames() {
 
       <div className="text-center mb-8 relative">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-warning/10 border border-warning/30 text-xs font-semibold text-warning mb-3">
-          <Sparkles className="w-3.5 h-3.5 animate-pulse" /> Tỉ lệ thưởng cực đỉnh — thắng x3!
+          <Sparkles className="w-3.5 h-3.5" /> Tỉ lệ thưởng cực đỉnh — thắng x3!
         </div>
         <h2 className="text-3xl sm:text-5xl font-display font-bold mb-2">
-          Mini <span className="shimmer-text">Game</span>
+          Mini <span className="text-primary">Game</span>
         </h2>
         <p className="text-muted-foreground text-sm sm:text-base">Quay số · Mở hộp · Đổ xúc xắc — thưởng tới x3 lần cược!</p>
       </div>
@@ -339,10 +348,11 @@ export function MiniGames() {
               {/* outer glow ring */}
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/40 to-accent/40 blur-xl animate-pulse" />
               <div
-                className="relative w-full h-full rounded-full border-4 border-primary shadow-glow"
+                className="relative w-full h-full rounded-full border-4 border-primary shadow-glow transition-transform [transition-duration:3200ms] [transition-timing-function:cubic-bezier(0.17,0.67,0.21,1)] [will-change:transform]"
+                role="img"
+                aria-label="Vòng quay may mắn"
                 style={{
                   transform: `rotate(${spinAngle}deg)`,
-                  transition: "transform 3s cubic-bezier(.17,.67,.21,1)",
                   background: `conic-gradient(${conicGradient})`,
                 }}
               >
@@ -388,9 +398,9 @@ export function MiniGames() {
             </div>
           </div>
           <div className="text-[12px] text-muted-foreground text-center mt-1">
-            🎲 Tỉ lệ: x2.2 · x2 · x1.7 · x1.5 · x1 · x0.5 · Chúc may mắn · Mất lượt
+            Tỉ lệ: x2.2 · x2 · x1.7 · x1.5 · x1 · x0.5 · Chúc may mắn · Mất lượt
           </div>
-          <BetInput bet={bet1} setBet={setBet1} />
+          <BetInput id="bet-spin" bet={bet1} setBet={setBet1} />
           <Button onClick={spin} disabled={busy === "spin"} className="w-full bg-gradient-primary font-semibold">
             {busy === "spin" ? "Đang quay..." : "Quay ngay"}
           </Button>
@@ -419,7 +429,7 @@ export function MiniGames() {
           🎁 Tỉ lệ: Báu vật x3 · Kim cương x2.5 · Pha lê x2 · Túi vàng x1.5 · Hộp rỗng / Cát bụi x0
           </div>
         </div>
-        <BetInput bet={bet2} setBet={setBet2} />
+        <BetInput id="bet-box" bet={bet2} setBet={setBet2} />
           <Button onClick={openBox} disabled={busy === "box"} className="w-full bg-gradient-primary font-semibold">
             {busy === "box" ? "Đang mở..." : "Mở hộp"}
           </Button>
@@ -444,7 +454,7 @@ export function MiniGames() {
              🎲 12: x3 · 11: x2 · 9-10: x1.5 · 7-8: x1.1 · 5-6: x0.5 · ≤4: 0
             </div>
           </div>
-          <BetInput bet={bet3} setBet={setBet3} />
+          <BetInput id="bet-dice" bet={bet3} setBet={setBet3} />
           <Button onClick={rollDice} disabled={busy === "dice"} className="w-full bg-gradient-primary font-semibold">
             {busy === "dice" ? "Đang lăn..." : "Lăn xúc xắc"}
           </Button>

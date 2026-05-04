@@ -2,11 +2,11 @@ import { Suspense, lazy } from "react";
 import { AppShell } from "@/components/AppShell";
 import { TransactionTicker } from "@/components/TransactionTicker";
 import { Hero } from "@/components/Hero";
-import { CardRecharge } from "@/components/CardRecharge";
-import { RobuxShop } from "@/components/RobuxShop";
 import { Link } from 'react-router-dom';
 import { Skeleton } from "@/components/ui/skeleton";
 
+const CardRecharge = lazy(() => import("@/components/CardRecharge").then(m => ({ default: m.CardRecharge })));
+const RobuxShop = lazy(() => import("@/components/RobuxShop").then(m => ({ default: m.RobuxShop })));
 const GamepassShop = lazy(() => import("@/components/GamepassShop").then(m => ({ default: m.GamepassShop })));
 const MiniGames = lazy(() => import("@/components/MiniGames").then(m => ({ default: m.MiniGames })));
 const BoostingZone = lazy(() => import("@/components/BoostingZone").then(m => ({ default: m.BoostingZone })));
@@ -19,9 +19,9 @@ const Index = () => {
     <AppShell>
       <TransactionTicker />
         <Hero />
-        <CardRecharge />
-        <RobuxShop />
         <Suspense fallback={<div className="container p-10"><Skeleton className="h-40 w-full" /></div>}>
+          <CardRecharge />
+          <RobuxShop />
           <GamepassShop />
           <BoostingZone />
           <MiniGames />

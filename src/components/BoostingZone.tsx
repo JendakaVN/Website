@@ -30,7 +30,8 @@ const GAMES: BoostGame[] = [
   { id: "ko", name: "King Legacy", emoji: "👑", category: "Roblox", workers: 18, rating: 4.8, basePrice: 25000, basePriceLabel: "25k/lv", gradient: "from-amber-500 to-yellow-500" },
   { id: "petsim", name: "Pet Simulator 99", emoji: "🐾", category: "Roblox", workers: 31, rating: 4.9, basePrice: 15000, basePriceLabel: "15k/h", hot: true, gradient: "from-pink-500 to-rose-500" },
   { id: "anime", name: "Anime Defenders", emoji: "⚔️", category: "Roblox", workers: 12, rating: 4.7, basePrice: 30000, basePriceLabel: "30k/h", gradient: "from-violet-500 to-purple-600" },
-  { id: "evade", name: "Evade", emoji: "👻", category: "Roblox", workers: 9, rating: 4.8, basePrice: 35000, basePriceLabel: "35k/h", hot: true, gradient: "from-slate-500 to-zinc-700" },
+  { id: "evade", name: "Evade", emoji: "👻", category: "Roblox", workers: 9, rating: 4.8, basePrice: 35000, basePriceLabel: "35k/h", gradient: "from-slate-500 to-zinc-700" },
+  { id: "sailor", name: "Sailor Piece", emoji: "⛵", category: "Roblox", workers: 15, rating: 4.9, basePrice: 30000, basePriceLabel: "30k/lv", hot: true, gradient: "from-blue-500 to-indigo-600" },
 ];
 
 export function BoostingZone() {

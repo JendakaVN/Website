@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import {
   Settings, History, ShoppingBag, Swords, Receipt, Shield, Coins
 } from "lucide-react";
 import { formatVND } from "@/data/discount";
+import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger
@@ -23,10 +24,36 @@ const NAV = [
 ];
 
 export function Header() {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, refreshProfile } = useAuth();
   const { isAdmin } = useUserRole();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+
+  // Thiết lập Realtime listener để tự động cập nhật số dư
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`public:profiles:id=eq.${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `id=eq.${user.id}`,
+        },
+        () => {
+          // Khi có bất kỳ thay đổi nào ở hàng của user trong bảng profiles, gọi refreshProfile
+          refreshProfile();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, refreshProfile]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-background/80 border-b border-border/60">
@@ -96,10 +123,6 @@ export function Header() {
                 <Wallet className="w-4 h-4 text-primary" />
                 <span className="font-semibold text-sm">{formatVND(profile?.balance ?? 0)}</span>
               </div>
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-warning/10 border border-warning/30">
-                <Coins className="w-4 h-4 text-warning" />
-                <span className="font-bold text-sm text-warning">{(profile as any)?.robux_balance || 0}</span>
-              </div>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -114,6 +137,10 @@ export function Header() {
                   <DropdownMenuLabel>
                     <div className="text-xs text-muted-foreground">Đăng nhập:</div>
                     <div className="font-semibold truncate">{profile?.display_name}</div>
+                    <div className="flex items-center gap-2 mt-1 text-[11px] font-bold text-warning">
+                      <Coins className="w-3 h-3" />
+                      {(profile as any)?.robux_balance || 0} Robux
+                    </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {NAV.map((n) => (
@@ -149,10 +176,6 @@ export function Header() {
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-secondary/60 border border-border/50 w-full">
             <Wallet className="w-4 h-4 text-primary" />
             <span className="font-semibold text-sm">Số dư: {formatVND(profile?.balance ?? 0)}</span>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-warning/10 border border-warning/30 w-full">
-            <Coins className="w-4 h-4 text-warning" />
-            <span className="font-bold text-sm text-warning">Robux: {(profile as any)?.robux_balance || 0}</span>
           </div>
         </div>
       )}

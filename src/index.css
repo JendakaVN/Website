@@ -69,9 +69,7 @@
     --sidebar-border: 222 35% 20%;
     --sidebar-ring: 217 91% 60%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
@@ -80,13 +78,17 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', 'Arial', system-ui, sans-serif;
     background-image: var(--gradient-hero);
     background-attachment: fixed;
   }
   h1, h2, h3, h4 {
     font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
     @apply font-bold tracking-tight;
+  }
+
+  section, .container {
+    min-height: 200px;
   }
 }
 
@@ -145,11 +147,21 @@
   animation: confetti-fall 1.6s cubic-bezier(.2,.6,.4,1) forwards;
 }
 
-@keyframes mini-pulse {
-  0%, 100% { box-shadow: 0 0 60px hsl(var(--primary) / 0.25), 0 0 120px hsl(var(--accent) / 0.15); }
-  50% { box-shadow: 0 0 90px hsl(var(--primary) / 0.45), 0 0 160px hsl(var(--accent) / 0.3); }
+@keyframes mini-pulse-optimized {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
 }
-.mini-game-aura { animation: mini-pulse 4s ease-in-out infinite; }
+.mini-game-aura { position: relative; }
+.mini-game-aura::after {
+  content: '';
+  position: absolute;
+  inset: -20px;
+  background: radial-gradient(circle, hsl(var(--primary) / 0.3), transparent 70%);
+  animation: mini-pulse-optimized 4s ease-in-out infinite;
+  z-index: -1;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
 
 @keyframes orbit {
   from { transform: rotate(0deg) translateX(var(--r, 60px)) rotate(0deg); }

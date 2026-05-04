@@ -54,7 +54,7 @@ export default function AdminPage() {
 
   const [robux, setRobux] = useState<RobuxOrder[]>([]);
   const [boost, setBoost] = useState<BoostOrder[]>([]);
-  const [allUsers, setAllUsers] = useState<{ id: string; display_name: string }[]>([]);
+  const [allUsers, setAllUsers] = useState<{ id: string; display_name: string; background_url?: string }[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [vndPrize, setVndPrize] = useState(10000);
   const [robuxPrize, setRobuxPrize] = useState(100);
@@ -70,15 +70,33 @@ export default function AdminPage() {
     const [r, b, u] = await Promise.all([
       supabase.from("robux_orders").select("*, profiles(display_name)").order("created_at", { ascending: false }).limit(100),
       supabase.from("boosting_orders").select("*, profiles(display_name)").order("created_at", { ascending: false }).limit(100),
-      supabase.from("profiles").select("id, display_name").order("display_name", { ascending: true }).limit(200),
+      supabase.from("profiles").select("id, display_name, background_url").order("display_name", { ascending: true }).limit(200),
     ]);
-    setRobux((r.data as unknown as RobuxOrder[]) ?? []);
-    setBoost((b.data as unknown as BoostOrder[]) ?? []);
+
+    const sortFn = (a: any, b: any) => {
+      const aSettled = a.status === "completed" || a.status === "failed";
+      const bSettled = b.status === "completed" || b.status === "failed";
+
+      // Đơn đã xong luôn ở dưới cùng
+      if (aSettled && !bSettled) return 1;
+      if (!aSettled && bSettled) return -1;
+
+      // Nếu cả 2 đều chưa xong (settled): Ưu tiên đơn ĐÃ XEM (seen) lên TRÊN đơn CHƯA XEM
+      if (!aSettled && !bSettled) {
+        if (a.seen_by_admin && !b.seen_by_admin) return -1; // a lên trên
+        if (!a.seen_by_admin && b.seen_by_admin) return 1;  // b lên trên
+      }
+
+      // Mặc định sắp xếp theo thời gian mới nhất
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    };
+
+    setRobux(((r.data as unknown as RobuxOrder[]) ?? []).sort(sortFn));
+    setBoost(((b.data as unknown as BoostOrder[]) ?? []).sort(sortFn));
     setAllUsers(u.data ?? []);
   };
 
   const getDisplayName = (profiles: any) => {
-    if (!profiles) return null;
     if (Array.isArray(profiles)) return profiles[0]?.display_name;
     return profiles.display_name;
   };
@@ -165,41 +183,58 @@ export default function AdminPage() {
     setSpinning(true);
     setWinner(null);
 
+    const wheelElement = document.getElementById('giveaway-wheel');
+    if (!wheelElement) return;
+
+    const currentAngle = giveawayAngle; // Lấy góc quay hiện tại (đã cộng dồn)
+    const currentPos = currentAngle % 360; // Vị trí hiện tại trong vòng tròn 360 độ
     const winnerIdx = Math.floor(Math.random() * selectedUserIds.length);
     const winnerId = selectedUserIds[winnerIdx];
     const winnerUser = allUsers.find(u => u.id === winnerId);
 
     const segAngle = 360 / selectedUserIds.length;
-    // Tính góc quay để pointer dừng ở giữa segment của người thắng
+    const randomOffset = (Math.random() - 0.5) * (segAngle * 0.7);
     const targetPos = (90 - (winnerIdx * segAngle + segAngle / 2) + 360) % 360;
-    const newAngle = giveawayAngle + (360 * 10) + (targetPos - (giveawayAngle % 360) + 360) % 360;
     
-    setGiveawayAngle(newAngle);
+    const extraRounds = 8; // Tăng lên 8 vòng để quay lâu và đẹp hơn
+    const delta = (targetPos - currentPos + 360) % 360;
+    const totalAngle = currentAngle + (360 * extraRounds) + delta + randomOffset;
 
-    setTimeout(async () => {
-      setSpinning(false);
+    // Sử dụng easing mượt mà, dừng tự nhiên không bị nẩy/giật ngược (tránh cảm giác ăn gian)
+    const DURATION_MS = 4000; 
+    wheelElement.style.transition = `transform ${DURATION_MS}ms cubic-bezier(0.1, 0, 0.2, 1)`;
+
+    const onTransitionEnd = async () => {
+      wheelElement.removeEventListener('transitionend', onTransitionEnd);
       if (winnerUser) {
         setWinner(winnerUser);
-        
         try {
           const { error } = await supabase.rpc("process_giveaway_win" as any, {
             _winner_id: winnerUser.id,
             _vnd_amount: vndPrize,
             _robux_amount: robuxPrize
           });
-          
-          if (error) throw error;
 
-          toast.success(`Chúc mừng ${winnerUser.display_name} đã thắng giveaway!`, {
-            icon: <Trophy className="w-5 h-5 text-warning" />,
-          });
-          await refreshProfile(); // Refresh profile to update Robux balance in UI
+          if (error) {
+            toast.error("Lỗi cộng thưởng: " + error.message);
+          } else {
+            toast.success(`Chúc mừng ${winnerUser.display_name} đã thắng giveaway!`, {
+              icon: <Trophy className="w-5 h-5 text-warning" />,
+            });
+            refreshProfile();
+          }
         } catch (err: any) {
-          toast.error("Lỗi khi cộng thưởng: " + err.message);
+          toast.error(err.message);
         }
       }
-    }, 4500);
+      setSpinning(false);
+    };
+
+    wheelElement.addEventListener('transitionend', onTransitionEnd, { once: true });
+    setGiveawayAngle(totalAngle);
+    wheelElement.style.transform = `rotate(${totalAngle}deg)`;
   };
+
 
   if (roleLoading) return <AppShell><div className="container py-10 text-center text-muted-foreground">Đang kiểm tra quyền...</div></AppShell>;
 
@@ -343,7 +378,7 @@ export default function AdminPage() {
 
           <TabsContent value="giveaway" className="mt-6">
             <div className="grid lg:grid-cols-2 gap-8 items-start">
-              {/* Vòng quay */}
+              {/* Left Column: The Wheel */}
               <div className="glass-card p-8 flex flex-col items-center justify-center min-h-[500px] relative overflow-hidden">
                 <div className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-warning/10 border border-warning/30 text-xs font-bold text-warning">
                   <Sparkles className="w-3.5 h-3.5" /> Lucky Wheel
@@ -354,13 +389,14 @@ export default function AdminPage() {
                   <div className="absolute inset-[-10px] rounded-full border-4 border-primary/20 shadow-[0_0_30px_rgba(var(--primary),0.2)]" />
                   
                   {/* The Wheel */}
-                  <div 
-                    className="w-full h-full rounded-full border-4 border-primary shadow-glow relative overflow-hidden transition-transform duration-[4500ms] cubic-bezier(0.15, 0, 0.15, 1)"
-                    style={{ 
+                  <div
+                    id="giveaway-wheel"
+                    className="w-full h-full rounded-full border-4 border-primary shadow-glow relative overflow-hidden voices-none"
+                    style={{
                       transform: `rotate(${giveawayAngle}deg)`,
-                      background: selectedUserIds.length > 0 
+                      background: selectedUserIds.length > 0
                         ? `conic-gradient(${selectedUserIds.map((id, i) => {
-                            const colors = ["#8B5CF6", "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#EC4899"];
+                            const colors = ["#8B5CF6", "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#EC4899", "#06B6D4", "#F97316"];
                             const color = colors[i % colors.length];
                             const start = (i * 360) / selectedUserIds.length;
                             const end = ((i + 1) * 360) / selectedUserIds.length;
@@ -373,13 +409,13 @@ export default function AdminPage() {
                       const user = allUsers.find(u => u.id === id);
                       const segAngle = 360 / selectedUserIds.length;
                       return (
-                        <div 
+                        <div
                           key={id}
-                          className="absolute top-1/2 left-1/2 origin-left text-[10px] font-black text-white uppercase tracking-tighter"
-                          style={{ 
+                          className="absolute top-1/2 left-1/2 origin-left text-[9px] font-black text-white uppercase tracking-tighter"
+                          style={{
                             transform: `rotate(${i * segAngle + segAngle / 2 - 90}deg) translateX(40px)`,
                             width: '100px',
-                            textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+                            textShadow: '0 1px 3px rgba(0,0,0,0.8)'
                           }}
                         >
                           {user?.display_name.split(' ')[0].slice(0, 8)}
@@ -399,32 +435,46 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 w-full max-w-sm mb-6">
+                <div className="grid grid-cols-2 gap-3 w-full max-w-sm mb-6">
                   <div className="space-y-1.5">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
                       <DollarSign className="w-3 h-3" /> Thưởng VNĐ
                     </Label>
-                    <Input type="number" min={0} value={vndPrize} onChange={e => setVndPrize(Math.max(0, Number(e.target.value)))} className="h-9" />
+                    <Input type="number" min={0} value={vndPrize} onChange={e => setVndPrize(Math.max(0, Number(e.target.value)))} className="h-9 bg-secondary/30" />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
                       <Coins className="w-3 h-3 text-warning" /> Thưởng Robux
                     </Label>
-                    <Input type="number" min={0} value={robuxPrize} onChange={e => setRobuxPrize(Math.max(0, Number(e.target.value)))} className="h-9 text-warning font-bold" />
+                    <Input type="number" min={0} value={robuxPrize} onChange={e => setRobuxPrize(Math.max(0, Number(e.target.value)))} className="h-9 text-warning font-bold bg-secondary/30" />
                   </div>
                 </div>
 
-                <Button 
-                  onClick={startGiveaway} 
-                  disabled={spinning || selectedUserIds.length < 1} 
+                <Button
+                  onClick={startGiveaway}
+                  disabled={spinning || selectedUserIds.length < 1}
                   className="w-full max-w-sm bg-gradient-primary shadow-glow h-12 font-bold text-lg transition-bounce"
                 >
                   {spinning ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Sparkles className="w-5 h-5 mr-2" />}
                   QUAY NGAY
                 </Button>
+
+                {/* Winner Display Section */}
+                {winner && !spinning && (
+                  <div className="mt-6 w-full max-w-sm p-4 rounded-2xl bg-success/10 border-2 border-success/30 text-center animate-in fade-in zoom-in duration-500 relative">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-success text-white text-[10px] font-bold uppercase tracking-widest">
+                      Người thắng cuộc
+                    </div>
+                    <Trophy className="w-8 h-8 text-warning mx-auto mb-2" />
+                    <div className="text-xl font-display font-bold text-success mb-1">{winner.display_name}</div>
+                    <div className="text-sm font-semibold text-warning">
+                      +{formatVND(vndPrize)} & {robuxPrize.toLocaleString()} Robux
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Danh sách User */}
+              {/* Right Column: User Selection */}
               <div className="glass-card p-6 flex flex-col h-[500px]">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -439,9 +489,22 @@ export default function AdminPage() {
                     <button
                       key={u.id}
                       onClick={() => toggleUser(u.id)}
-                      className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${selectedUserIds.includes(u.id) ? "bg-primary/10 border-primary/40 shadow-sm" : "bg-secondary/20 border-transparent hover:border-border"}`}
+                      className={`w-full flex items-center justify-between p-2 rounded-xl border transition-all ${selectedUserIds.includes(u.id) ? "bg-primary/10 border-primary/40 shadow-sm" : "bg-secondary/20 border-transparent hover:border-border"}`}
                     >
-                      <span className={`text-sm font-medium ${selectedUserIds.includes(u.id) ? "text-primary" : "text-foreground/80"}`}>{u.display_name}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-secondary overflow-hidden border border-border/50 shrink-0">
+                          {(u as any).background_url ? (
+                             <img src={(u as any).background_url} alt="AV" className="w-full h-full object-cover" />
+                          ) : (
+                             <div className="w-full h-full flex items-center justify-center text-[10px] font-bold uppercase">
+                               {u.display_name.charAt(0)}
+                             </div>
+                          )}
+                        </div>
+                        <span className={`text-sm font-medium truncate max-w-[140px] ${selectedUserIds.includes(u.id) ? "text-primary" : "text-foreground/80"}`}>
+                          {u.display_name}
+                        </span>
+                      </div>
                       {selectedUserIds.includes(u.id) && <CheckCircle2 className="w-4 h-4 text-primary" />}
                     </button>
                   ))}

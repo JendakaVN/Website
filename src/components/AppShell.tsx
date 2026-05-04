@@ -4,7 +4,6 @@ import { useAuth } from "@/context/AuthContext";
 
 // Hook xử lý Parallax toàn cục
 function useGlobalMouseParallax(intensity = 25) { 
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isLowPower, setIsLowPower] = useState(false);
 
   useEffect(() => {
@@ -17,24 +16,16 @@ function useGlobalMouseParallax(intensity = 25) {
       return;
     }
 
-    let rafId: number;
-    let lastUpdate = 0;
-    const fpsInterval = 1000 / 30; // Giới hạn 30 FPS
-
     const handleMouseMove = (e: MouseEvent) => {
-      rafId = requestAnimationFrame(() => {
-        const now = performance.now();
-        if (now - lastUpdate < fpsInterval) return; // Bỏ qua nếu chưa đến khung hình tiếp theo
-        lastUpdate = now;
-
-        const centerX = window.innerWidth / 2;
-        const centerY = window.innerHeight / 2;
-        
-        const moveX = -(e.clientX - centerX) / intensity;
-        const moveY = -(e.clientY - centerY) / intensity;
-        
-        setOffset({ x: moveX, y: moveY });
-      });
+      // Sử dụng CSS Variables để tránh React re-render, giảm TBT đáng kể
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      
+      const moveX = -(e.clientX - centerX) / intensity;
+      const moveY = -(e.clientY - centerY) / intensity;
+      
+      document.documentElement.style.setProperty('--parallax-x', `${moveX}px`);
+      document.documentElement.style.setProperty('--parallax-y', `${moveY}px`);
     };
 
     // Đăng ký sự kiện vào window ngay khi component mount
@@ -42,20 +33,22 @@ function useGlobalMouseParallax(intensity = 25) {
     
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      cancelAnimationFrame(rafId);
     };
   }, [intensity]);
 
-  return { ...offset, isLowPower };
+  return { isLowPower };
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { profile } = useAuth();
-  const { x, y, isLowPower } = useGlobalMouseParallax(15); // Tăng độ nhạy (intensity thấp hơn = di chuyển nhiều hơn)
+  const { isLowPower } = useGlobalMouseParallax(15); 
 
   // Đảm bảo lấy đúng background_url từ profile dù profile có thể đang load
   const rawUrl = profile ? (profile as any).background_url : null;
-  const backgroundUrl = typeof rawUrl === 'string' && rawUrl.trim() !== "" ? rawUrl : null;
+  // Security: Sanitize URL to prevent CSS injection (escaping quotes)
+  const backgroundUrl = typeof rawUrl === 'string' && rawUrl.trim() !== "" 
+    ? rawUrl.replace(/"/g, '%22').replace(/'/g, '%27')
+    : null;
   const hasBackground = !!backgroundUrl;
 
   return (
@@ -72,10 +65,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         
         {/* Lớp Ảnh nền hoặc Video nền */}
         <div
-          key={backgroundUrl}
           className={`absolute inset-0 transition-opacity duration-1000 ${hasBackground ? 'opacity-100' : 'opacity-0'}`}
           style={{ 
-            transform: isLowPower ? 'none' : `translate3d(${x}px, ${y}px, 0) scale(1.1)`,
+            transform: isLowPower ? 'none' : `translate3d(var(--parallax-x, 0), var(--parallax-y, 0), 0) scale(1.1)`,
             transition: isLowPower ? 'none' : 'transform 0.15s ease-out',
             willChange: 'transform',
           }}

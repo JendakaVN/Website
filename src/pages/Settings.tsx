@@ -67,9 +67,15 @@ export default function SettingsPage() {
   };
 
   const saveBg = async () => {
+    const newUrl = bgUrl?.trim() || "";
+    
+    // Security: Basic URL validation for background image
+    if (newUrl && !newUrl.match(/^https?:\/\/.+/)) {
+      return toast.error("Link ảnh không hợp lệ (phải bắt đầu bằng http:// hoặc https://)");
+    }
+
     setSavingBg(true);
     const oldUrl = (profile as any)?.background_url;
-    const newUrl = bgUrl?.trim() || "";
 
     // Nếu link mới khác link cũ và ảnh cũ là ảnh được lưu trên Storage (có chứa 'backgrounds/')
     // Chúng ta tiến hành xóa file cũ đi để tiết kiệm dung lượng
@@ -100,8 +106,18 @@ export default function SettingsPage() {
         img.src = event.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement("canvas");
-          canvas.width = img.width;
-          canvas.height = img.height;
+          
+          // Tối ưu kích thước: Giới hạn chiều rộng tối đa 1920px cho ảnh nền
+          const maxWidth = 1920;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+          canvas.width = width;
+          canvas.height = height;
+
           const ctx = canvas.getContext("2d");
           if (!ctx) return reject(new Error("Không thể tạo context canvas"));
           ctx.drawImage(img, 0, 0);

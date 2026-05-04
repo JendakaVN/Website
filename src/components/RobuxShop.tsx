@@ -166,6 +166,8 @@ export function RobuxShop() {
       return;
     }
 
+    if (!selectedUser && !username.trim()) { toast.error("Vui lòng nhập tài khoản nhận Robux"); return; }
+
     if ((profile?.balance ?? 0) < picked.priceVnd) { toast.error("Số dư không đủ. Hãy nạp thẻ trước!"); return; }
     setBusy(true);
     try {
