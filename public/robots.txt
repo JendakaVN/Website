@@ -1,3 +1,4 @@
+# Updated: 2026-05-04 - Clean version
 User-agent: Googlebot
 Allow: /
 
