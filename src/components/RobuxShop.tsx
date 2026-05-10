@@ -332,10 +332,10 @@ export function RobuxShop() {
                     min={0}
                     value={withdrawAmount || ""}
                     onChange={(e) => setWithdrawAmount(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="h-14 text-xl font-display font-black text-warning border-warning/30 bg-black focus-visible:ring-warning pr-20"
+                    className="h-14 text-xl font-display font-black text-foreground dark:text-warning border-warning/30 bg-background dark:bg-black focus-visible:ring-warning pr-20"
                     placeholder="VD: 500"
                   />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-warning/50">Robux</div>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground dark:text-warning/50">Robux</div>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
                   Số dư hiện tại: <span className="text-warning font-bold">{(profile as any)?.robux_balance || 0} Robux</span>

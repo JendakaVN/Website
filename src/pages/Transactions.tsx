@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { AppShell } from "@/components/AppShell";
+import { AppShell } from "./AppShell";
 import { Receipt } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";

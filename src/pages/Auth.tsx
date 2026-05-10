@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Gamepad2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { AppShell } from "./AppShell";
 
 const schema = z.object({
   email: z.string().trim().email("Email không hợp lệ").max(255),
@@ -23,6 +23,12 @@ export default function Auth() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Buộc trang đăng nhập sử dụng Light Theme để đảm bảo hiển thị rõ ràng
+  useEffect(() => {
+    document.documentElement.classList.remove('dark');
+    document.documentElement.classList.add('light');
+  }, []);
 
   const sendReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,11 +106,12 @@ export default function Auth() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-12">
+    <AppShell hideNav>
+      <div className="min-h-[85vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md glass-card p-8 shadow-elevated animate-float-up">
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-glow">
-            <Gamepad2 className="w-6 h-6 text-primary-foreground" />
+          <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-glow border-2 border-white/10 bg-secondary">
+            <img src="/z7689958741673_a9738d01cb4bd4c1bdf94ca1d04e5467.webp" alt="Logo" className="w-full h-full object-cover" />
           </div>
           <span className="text-2xl font-display font-bold gradient-text">JendakaVN</span>
         </Link>
@@ -225,6 +232,7 @@ export default function Auth() {
           </form>
         </DialogContent>
       </Dialog>
-    </main>
+      </div>
+    </AppShell>
   );
 }

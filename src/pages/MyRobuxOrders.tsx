@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { AppShell } from "@/components/AppShell";
+import { AppShell } from "./AppShell";
 import { formatVND } from "@/data/discount";
 import { ShoppingBag, CheckCircle2, XCircle, Loader2, Eye, Coins, ArrowRight, Gift } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

@@ -28,7 +28,7 @@ const TELCO_MAP: Record<Network, string> = {
 
 const CARD_REQUIREMENTS: Record<Network, { s: number; p: number; min?: boolean }> = {
   Viettel: { s: 14, p: 15 },
-  Vinaphone: { s: 14, p: 12 },
+  Vinaphone: { s: 14, p: 14 },
   Mobifone: { s: 15, p: 12 },
   Vietnamobile: { s: 10, p: 10, min: true },
   Zing: { s: 12, p: 9 },
@@ -273,7 +273,7 @@ export function CardRecharge() {
       <section id="card" className="container mx-auto px-4 py-10 sm:py-14">
         <div className="text-center mb-8">
           <h2 className="text-2xl sm:text-4xl font-display font-bold mb-2">
-            Nạp thẻ <span className="gradient-text">chiết khấu cao</span>
+            Nạp thẻ <span className="gradient-text">chiết khấu thấp</span>
           </h2>
           <p className="text-muted-foreground text-sm sm:text-base">
             Đang tải bảng giá...
@@ -295,7 +295,16 @@ export function CardRecharge() {
   const isComplete = req.min
     ? serial.length >= req.s && pin.length >= req.p
     : serial.length === req.s && pin.length === req.p;
-  const canSubmit = !user || isComplete; // Nếu chưa login thì cho phép nhấn để chuyển sang trang auth
+
+  // Xác định lý do nút bị vô hiệu hóa
+  let disabledReason = "";
+  if (submitting) {
+    disabledReason = "Đang xử lý giao dịch...";
+  } else if (!user) {
+    disabledReason = "Vui lòng đăng nhập để nạp thẻ";
+  } else if (!isComplete) {
+    disabledReason = "Vui lòng nhập đủ Serial và Mã thẻ theo yêu cầu";
+  }
 
   const onNetworkChange = (n: Network) => {
     setNetwork(n);
@@ -313,20 +322,20 @@ export function CardRecharge() {
     let pinErr = "";
 
     if (network === "Garena") {
-      if (!/^\d{13}$/.test(serial)) serialErr = "Serial Garena phải đúng 13 số";
-      if (!/^\d{16}$/.test(pin)) pinErr = "Mã thẻ Garena phải đúng 16 số";
+      if (!/^[A-Z0-9]{13}$/.test(serial)) serialErr = "Serial Garena phải đúng 13 ký tự";
+      if (!/^[A-Z0-9]{16}$/.test(pin)) pinErr = "Mã thẻ Garena phải đúng 16 ký tự";
     } else if (network === "Zing") {
-      if (!/^\d{12}$/.test(serial)) serialErr = "Serial Zing phải đúng 12 số";
-      if (!/^[A-Za-z0-9]{9}$/.test(pin)) pinErr = "Mã thẻ Zing phải đúng 9 ký tự (chữ và số)";
+      if (!/^[A-Z0-9]{12}$/.test(serial)) serialErr = "Serial Zing phải đúng 12 ký tự";
+      if (!/^[A-Z0-9]{9}$/.test(pin)) pinErr = "Mã thẻ Zing phải đúng 9 ký tự";
     } else if (network === "Viettel") {
-      if (!/^\d{14}$/.test(serial)) serialErr = "Serial Viettel phải đúng 14 số";
-      if (!/^\d{15}$/.test(pin)) pinErr = "Mã thẻ Viettel phải đúng 15 số";
+      if (!/^[A-Z0-9]{14}$/.test(serial)) serialErr = "Serial Viettel phải đúng 14 ký tự";
+      if (!/^[A-Z0-9]{15}$/.test(pin)) pinErr = "Mã thẻ Viettel phải đúng 15 ký tự";
     } else if (network === "Mobifone") {
-      if (!/^\d{15}$/.test(serial)) serialErr = "Serial Mobifone phải đúng 15 số";
-      if (!/^\d{12}$/.test(pin)) pinErr = "Mã thẻ Mobifone phải đúng 12 số";
+      if (!/^[A-Z0-9]{15}$/.test(serial)) serialErr = "Serial Mobifone phải đúng 15 ký tự";
+      if (!/^[A-Z0-9]{12}$/.test(pin)) pinErr = "Mã thẻ Mobifone phải đúng 12 ký tự";
     } else if (network === "Vinaphone") {
-      if (!/^\d{14}$/.test(serial)) serialErr = "Serial Vinaphone phải đúng 14 số";
-      if (!/^\d{12}$/.test(pin)) pinErr = "Mã thẻ Vinaphone phải đúng 12 số";
+      if (!/^[A-Z0-9]{14}$/.test(serial)) serialErr = "Serial Vinaphone phải đúng 14 ký tự";
+      if (!/^[A-Z0-9]{14}$/.test(pin)) pinErr = "Mã thẻ Vinaphone phải đúng 14 ký tự";
     } else if (network === "Vietnamobile") {
       if (serial.length < 10) serialErr = "Serial quá ngắn";
       if (pin.length < 10) pinErr = "Mã thẻ quá ngắn";
@@ -388,7 +397,7 @@ export function CardRecharge() {
     <section id="card" className="container mx-auto px-4 py-10 sm:py-14">
       <div className="text-center mb-8">
         <h2 className="text-2xl sm:text-4xl font-display font-bold mb-2">
-          Nạp thẻ <span className="gradient-text">chiết khấu cao</span>
+          Nạp thẻ <span className="gradient-text">chiết khấu thấp</span>
         </h2>
         <p className="text-muted-foreground text-sm sm:text-base">
           Hỗ trợ 6 nhà mạng, tự động duyệt trong vài giây.
@@ -462,14 +471,13 @@ export function CardRecharge() {
                     id="serial"
                     value={serial}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, "");
+                      const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
                       setSerial(value);
                       setErrors((prev) => ({ ...prev, serial: undefined }));
                     }}
                     placeholder="Nhập số serial"
                     maxLength={req.min ? 25 : req.s}
-                    inputMode="numeric"
-                    pattern="\d*"
+                    inputMode="text"
                     className={errors.serial ? "border-red-500" : ""}
                   />
                   {errors.serial && (
@@ -483,15 +491,13 @@ export function CardRecharge() {
                     id="pin"
                     value={pin}
                     onChange={(e) => {
-                      const value = network === "Zing" 
-                        ? e.target.value.replace(/[^A-Za-z0-9]/g, "") 
-                        : e.target.value.replace(/\D/g, "");
+                      const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
                       setPin(value);
                       setErrors((prev) => ({ ...prev, pin: undefined }));
                     }}
                     placeholder="Nhập mã thẻ cào"
                     maxLength={req.min ? 25 : req.p}
-                    inputMode={network === "Zing" ? "text" : "numeric"}
+                    inputMode="text"
                     className={errors.pin ? "border-red-500" : ""}
                   />
                   {errors.pin && (

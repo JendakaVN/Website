@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { AppShell } from "@/components/AppShell";
+import { AppShell } from "./AppShell";
 import { formatVND } from "@/data/discount";
 import { History, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 

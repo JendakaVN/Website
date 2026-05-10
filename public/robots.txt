@@ -14,8 +14,6 @@ Allow: /
 User-agent: *
 Allow: /
 
-# Block AI crawlers from using site content for training
-# (Replaces invalid 'Content-Signal' directive)
 User-agent: GPTBot
 Disallow: /
 

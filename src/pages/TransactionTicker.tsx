@@ -84,7 +84,7 @@ export function TransactionTicker() {
 
   if (items.length === 0) {
     return (
-      <div className="bg-gradient-card border-y border-border/40 py-2 overflow-hidden min-h-[33px] flex items-center">
+      <div className="ticker-card-bg py-2 overflow-hidden min-h-[33px] flex items-center transition-colors duration-500 border-b border-border/5">
         <div className="container mx-auto px-4 text-xs text-muted-foreground text-center italic opacity-50">
           🔥 Chưa có ai nạp thẻ — hãy là người đầu tiên!
         </div>
@@ -95,7 +95,7 @@ export function TransactionTicker() {
   const loop = [...items, ...items];
 
   return (
-    <div className="bg-gradient-card border-y border-border/40 py-2 overflow-hidden min-h-[33px]">
+    <div className="ticker-card-bg py-0.5 overflow-hidden min-h-[24px] transition-colors duration-500 border-b border-border/5">
       <div className="ticker-track flex gap-8 whitespace-nowrap">
         {loop.map((it, i) => (
           <span key={`${it.id}-${i}`} className="inline-flex items-center gap-2 text-xs">

@@ -1,7 +1,6 @@
 import { Suspense, lazy } from "react";
-import { AppShell } from "@/components/AppShell";
-import { TransactionTicker } from "@/components/TransactionTicker";
-import { Hero } from "@/components/Hero";
+import { AppShell } from "./AppShell";
+import { Hero } from "@/components/Hero"; // Hero vẫn ở trong components
 import { Link } from 'react-router-dom';
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -17,7 +16,6 @@ const RobuxOrders = lazy(() => import("@/components/RobuxOrders").then(m => ({ d
 const Index = () => {
   return (
     <AppShell>
-      <TransactionTicker />
         <Hero />
         <Suspense fallback={<div className="container p-10"><Skeleton className="h-40 w-full" /></div>}>
           <CardRecharge />

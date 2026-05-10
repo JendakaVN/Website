@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { AppShell } from "@/components/AppShell";
+import { AppShell } from "./AppShell";
 import { formatVND } from "@/data/discount";
 import { Shield, CheckCircle2, XCircle, Loader2, Eye, Bell, Gift, Users, DollarSign, Coins, Trophy, ChevronRight, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

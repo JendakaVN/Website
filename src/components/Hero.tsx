@@ -2,7 +2,7 @@ import { Sparkles, Zap, Trophy } from "lucide-react";
 
 export function Hero() {
   return (
-    <section className="container mx-auto px-4 pt-10 pb-8 sm:pt-16 sm:pb-12 min-h-[320px] sm:min-h-[400px] flex items-center justify-center">
+    <section className="container mx-auto px-4 pt-2 pb-8 sm:pt-4 sm:pb-12 min-h-[320px] sm:min-h-[400px] flex items-center justify-center">
       <div className="text-center max-w-3xl mx-auto animate-float-up w-full">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/15 border border-primary/30 text-xs sm:text-sm text-primary mb-4">
           <Sparkles className="w-3 h-3" /> Shop Roblox & Card uy tín #1 Việt Nam

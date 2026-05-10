@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AppShell } from "./AppShell";
 import { toast } from "sonner";
-import { Gamepad2, KeyRound, ShieldCheck, Loader2, ArrowLeft } from "lucide-react";
+import { KeyRound, ShieldCheck, Loader2, ArrowLeft } from "lucide-react";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -28,6 +29,12 @@ export default function ResetPassword() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Buộc trang đổi mật khẩu sử dụng Light Theme
+  useEffect(() => {
+    document.documentElement.classList.remove('dark');
+    document.documentElement.classList.add('light');
+  }, []);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 6) return toast.error("Mật khẩu tối thiểu 6 ký tự");
@@ -48,11 +55,13 @@ export default function ResetPassword() {
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-12">
+    <AppShell hideNav>
+      <div className="min-h-[85vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md glass-card p-8 shadow-elevated animate-float-up border border-primary/20 relative overflow-hidden">
         <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl" />
         <Link to="/" className="flex items-center justify-center gap-2 mb-8 relative z-10">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-glow">
-            <Gamepad2 className="w-6 h-6 text-primary-foreground" />
+          <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-glow border-2 border-white/10 bg-secondary">
+            <img src="/z7689958741673_a9738d01cb4bd4c1bdf94ca1d04e5467.webp" alt="Logo" className="w-full h-full object-cover" />
           </div>
           <span className="text-2xl font-display font-bold gradient-text">JendakaVN</span>
         </Link>
@@ -132,6 +141,8 @@ export default function ResetPassword() {
           </>
         )}
       </div>
+      </div>
+    </AppShell>
     </main>
   );
 }
