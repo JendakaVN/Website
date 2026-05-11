@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +7,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AppShell } from "./AppShell";
-
-const schema = z.object({
-  email: z.string().trim().email("Email không hợp lệ").max(255),
-  password: z.string().min(6, "Mật khẩu tối thiểu 6 ký tự").max(72),
-  displayName: z.string().trim().min(2, "Tên hiển thị tối thiểu 2 ký tự").max(40).optional(),
-});
+import { authSchema } from "@/components/ui/auth";
+import { z } from "zod";
 
 export default function Auth() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -23,12 +18,6 @@ export default function Auth() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const navigate = useNavigate();
-
-  // Buộc trang đăng nhập sử dụng Light Theme để đảm bảo hiển thị rõ ràng
-  useEffect(() => {
-    document.documentElement.classList.remove('dark');
-    document.documentElement.classList.add('light');
-  }, []);
 
   const sendReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,24 +42,24 @@ export default function Auth() {
     }
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = useCallback(async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `https://www.jendakavn.dpdns.org`,
+          redirectTo: window.location.origin,
         },
       });
       if (error) throw error;
     } catch (err: any) {
       toast.error(err.message);
     }
-  };
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = mode === "signup" ? form : { email: form.email, password: form.password };
-    const parsed = schema.safeParse(payload);
+    const parsed = authSchema.safeParse(payload);
     if (!parsed.success) {
       toast.error(parsed.error.issues[0].message);
       return;
@@ -82,7 +71,7 @@ export default function Auth() {
           email: form.email,
           password: form.password,
           options: {
-            emailRedirectTo: `https://www.jendakavn.dpdns.org`,
+            emailRedirectTo: `https://jendakavn.dpdns.org`,
             data: { display_name: form.displayName },
           },
         });
@@ -105,13 +94,17 @@ export default function Auth() {
     }
   };
 
+  const illustration = useMemo(() => (
+    <img src="/favicon.webp" alt="Logo" className="w-full h-full object-cover" />
+  ), []);
+
   return (
-    <AppShell hideNav>
+    <AppShell hideNav forceTheme="light">
       <div className="min-h-[85vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md glass-card p-8 shadow-elevated animate-float-up">
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">
           <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-glow border-2 border-white/10 bg-secondary">
-            <img src="/z7689958741673_a9738d01cb4bd4c1bdf94ca1d04e5467.webp" alt="Logo" className="w-full h-full object-cover" />
+            {illustration}
           </div>
           <span className="text-2xl font-display font-bold gradient-text">JendakaVN</span>
         </Link>
@@ -184,6 +177,7 @@ export default function Auth() {
 
         <Button 
           variant="outline" 
+          type="button"
           className="w-full transition-smooth" 
           onClick={signInWithGoogle}
         >

@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect, useMemo } from "react";
+import { ReactNode, useState, useEffect, useMemo, useCallback } from "react";
 import { Header } from "./Header";
 import { useAuth } from "@/context/AuthContext";
 import { Moon, Sun } from "lucide-react";
@@ -41,16 +41,20 @@ function useGlobalMouseParallax(intensity = 25) {
   return { isLowPower };
 }
 
-export function AppShell({ children, hideNav }: { children: ReactNode; hideNav?: boolean }) {
+export function AppShell({ children, hideNav, forceTheme }: { children: ReactNode; hideNav?: boolean; forceTheme?: 'light' | 'dark' }) {
   const { profile } = useAuth();
   const { isLowPower } = useGlobalMouseParallax(15); 
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
 
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  }, []);
+
   // Khởi tạo theme từ localStorage
   useEffect(() => {
     const saved = localStorage.getItem('theme') as 'dark' | 'light';
-    setTheme(saved || 'light');
-  }, []);
+    setTheme(forceTheme || saved || 'light');
+  }, [forceTheme]);
 
   // Cập nhật class vào thẻ html để Tailwind/CSS nhận diện
   useEffect(() => {
@@ -78,7 +82,7 @@ export function AppShell({ children, hideNav }: { children: ReactNode; hideNav?:
     <div className="min-h-screen flex flex-col relative overflow-x-hidden">
       {/* Nút chuyển đổi giao diện cố định */}
       <button 
-        onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+        onClick={toggleTheme}
         className="fixed bottom-6 right-6 z-[100] w-12 h-12 flex items-center justify-center rounded-full bg-background/80 backdrop-blur-xl border border-border shadow-2xl hover:scale-110 active:scale-95 transition-all group ring-1 ring-border/50"
         title={theme === 'dark' ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"}
       >

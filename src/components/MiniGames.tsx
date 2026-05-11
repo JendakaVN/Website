@@ -9,26 +9,8 @@ import { formatVND } from "@/data/discount";
 import { Disc3, Gift, Dices, Sparkles, Frown, PartyPopper, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { playWinSound, playLoseSound } from "@/lib/sound";
-
-const SPIN_SEGMENTS = [
-  { mult: 0, label: "Chúc may mắn", color: "hsl(var(--muted))" },
-  { mult: 0.5, label: "x0.5", color: "hsl(var(--accent))" },
-  { mult: 1, label: "x1", color: "hsl(var(--primary))" },
-  { mult: 2.2, label: "x2.2", color: "hsl(var(--success))" },
-  { mult: 1.5, label: "x1.5", color: "hsl(var(--warning))" },
-  { mult: 0, label: "Mất lượt", color: "hsl(var(--destructive))" },
-  { mult: 2, label: "x2", color: "hsl(var(--primary-glow))" },
-  { mult: 1.7, label: "x1.7", color: "hsl(var(--accent))" },
-];
-
-const BOX_ITEMS = [
-  { mult: 2.5, label: "💎 Kim cương", rarity: "Hiếm" }, 
-  { mult: 2, label: "✨ Pha lê", rarity: "Thường" },  
-  { mult: 1.5, label: "💰 Túi vàng", rarity: "Thường" },
-  { mult: 0, label: "❌ Hộp rỗng", rarity: "Trượt" },
-  { mult: 3, label: "🎁 Báu vật", rarity: "Huyền thoại" }, 
-  { mult: 0, label: "💸 Cát bụi", rarity: "Trượt" },
-];
+import { SPIN_SEGMENTS, BOX_ITEMS } from "@/components/ui/minigames";
+import { decideWin, pushHistory, pushLocalPlay } from "@/lib/minigame-utils";
 
 interface ResultPopup {
   win: boolean;
@@ -37,74 +19,25 @@ interface ResultPopup {
   amount: number;
 }
 
-// ===== Win-rate controller: target 55% (11 thắng / 9 thua) trên 20 lượt gần nhất, áp dụng cho TẤT CẢ mini game =====
-const HISTORY_KEY = "mg_history_v1";
-const WINDOW_SIZE = 20;
-const TARGET_WINS = 11;
-
-function getHistory(): boolean[] {
-  try {
-    const raw = localStorage.getItem(HISTORY_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr.slice(-WINDOW_SIZE) : [];
-  } catch { return []; }
-}
-
-function pushHistory(win: boolean) {
-  const h = [...getHistory(), win].slice(-WINDOW_SIZE);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
-}
-
-/** Quyết định lượt này có được phép thắng hay không, dựa trên lịch sử gần nhất. */
-function decideWin(): boolean {
-  const h = getHistory();
-  const wins = h.filter(Boolean).length;
-  const losses = h.length - wins;
-  // Nếu đã đạt/đủ ngưỡng thắng trong cửa sổ → ép thua
-  if (wins >= TARGET_WINS) return false;
-  // Nếu đã thua quá nhiều (đủ chỗ trống cần thắng) → ép thắng để giữ tỉ lệ
-  const remaining = WINDOW_SIZE - h.length;
-  const winsNeeded = TARGET_WINS - wins;
-  if (winsNeeded > remaining) return true;
-  // Còn lại theo xác suất 45%
-  return Math.random() < TARGET_WINS / WINDOW_SIZE;
-}
-
-// Lịch sử ván chơi giờ chỉ lưu local (không insert lên cloud)
-const PLAYS_KEY = "mg_plays_v1";
-interface LocalPlay { id: string; game: string; bet: number; reward: number; outcome: string; at: number; }
-function pushLocalPlay(p: Omit<LocalPlay, "id" | "at">) {
-  try {
-    const raw = localStorage.getItem(PLAYS_KEY);
-    const arr: LocalPlay[] = raw ? JSON.parse(raw) : [];
-    arr.unshift({ ...p, id: crypto.randomUUID(), at: Date.now() });
-    localStorage.setItem(PLAYS_KEY, JSON.stringify(arr.slice(0, 100)));
-  } catch {}
-}
-
 async function play(_uid: string, game: "spin" | "box" | "dice", bet: number, reward: number, outcome: string) {
-  // SECURITY WARNING: In a production environment, reward calculation MUST happen server-side.
-  // This client-side implementation is vulnerable to tampering.
-  // Recommendation: Create a single RPC like `handle_minigame_play` to process everything atomically.
+  /** 
+   * SECURITY ALERT: 
+   * Toàn bộ logic cộng tiền hiện tại đang nằm ở phía Client. 
+   * Bạn NÊN chuyển sang sử dụng 1 hàm RPC duy nhất trên Supabase (ví dụ: handle_game_logic) 
+   * để trừ tiền cược và cộng thưởng trong một Transaction duy nhất.
+   */
   
-  // Deduct bet
-  const { error: betError } = await supabase.rpc("adjust_balance", {
-    _delta: -Math.abs(bet), // Force negative to prevent "negative bet" exploits
-    _type: "game_bet",
-    _description: `Đặt cược ${game}`,
-  });
-  if (betError) throw betError;
+  const payload = {
+    _game_type: game,
+    _bet_amount: Math.abs(bet),
+    _reward_amount: reward,
+    _outcome_text: outcome
+  };
 
-  if (reward > 0) {
-    const { error: winError } = await supabase.rpc("adjust_balance", {
-      _delta: reward,
-      _type: "game_win",
-      _description: `Thắng ${game}: ${outcome}`,
-    });
-    if (winError) throw winError;
-  }
-  // Lưu lịch sử ván chơi vào localStorage thay vì cloud
+  const { error } = await supabase.rpc("process_minigame_transaction" as any, payload);
+  
+  if (error) throw error;
+
   pushLocalPlay({ game, bet, reward, outcome });
 }
 
@@ -179,10 +112,9 @@ export function MiniGames() {
     // Logic thao túng: Quyết định thắng hay thua trước khi quay
     const shouldWin = decideWin();
     
-    // Phân loại các ô để chọn
-    const winIndices = SPIN_SEGMENTS.map((s, i) => s.mult > 1 ? i : -1).filter(i => i !== -1);
-    const lossIndices = SPIN_SEGMENTS.map((s, i) => s.mult <= 1 ? i : -1).filter(i => i !== -1);
-    
+    const winIndices = SPIN_SEGMENTS.reduce((acc, s, i) => (s.mult > 1 ? [...acc, i] : acc), [] as number[]);
+    const lossIndices = SPIN_SEGMENTS.reduce((acc, s, i) => (s.mult <= 1 ? [...acc, i] : acc), [] as number[]);
+
     // Chọn index dựa trên quyết định của "nhà cái"
     let idx;
     if (shouldWin && winIndices.length > 0) {

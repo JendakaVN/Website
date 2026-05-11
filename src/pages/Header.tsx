@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
@@ -20,20 +20,20 @@ import {
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
+const NAV_LINKS = [
+  { to: "/recharge-history", label: "Nạp thẻ", icon: History },
+  { to: "/my-robux-orders", label: "Đơn Robux", icon: ShoppingBag },
+  { to: "/my-boosting-orders", label: "Đơn cày", icon: Swords },
+  { to: "/transactions", label: "Lịch sử giao dịch", icon: Receipt },
+  { to: "/partner-form", label: "Liên kết", icon: LinkIcon },
+];
+
 export function Header() {
   const { user, profile, signOut, refreshProfile } = useAuth();
   const { isAdmin } = useUserRole();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const NAV_LINKS = useMemo(() => [
-    { to: "/recharge-history", label: "Nạp thẻ", icon: History },
-    { to: "/my-robux-orders", label: "Đơn Robux", icon: ShoppingBag },
-    { to: "/my-boosting-orders", label: "Đơn cày", icon: Swords },
-    { to: "/transactions", label: "Lịch sử giao dịch", icon: Receipt },
-    { to: "/partner-form", label: "Liên kết", icon: LinkIcon },
-  ], []);
 
   // Tự động cập nhật số dư khi có thay đổi trong Database (Realtime)
   useEffect(() => {
@@ -46,12 +46,13 @@ export function Header() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user?.id, refreshProfile]);
+  
+  const handleSignOut = useCallback(async () => {
+    await signOut();
+    navigate("/auth");
+  }, [signOut, navigate]);
 
-  const UserAvatar = ({ className }: { className?: string }) => (
-    <div className={cn("w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary border border-primary/20", className)}>
-      {(profile?.display_name ?? "U").charAt(0).toUpperCase()}
-    </div>
-  );
+  const userInitial = useMemo(() => (profile?.display_name ?? "U").charAt(0).toUpperCase(), [profile?.display_name]);
 
   return (
     <div className="h-20 w-full flex items-center">
@@ -61,7 +62,7 @@ export function Header() {
         <div className="flex items-center gap-4 lg:gap-8">
           <Link to="/" className="flex items-center gap-2 group">
             <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-lg group-hover:scale-105 transition-transform border-2 border-white/10 bg-secondary">
-              <img src="/z7689958741673_a9738d01cb4bd4c1bdf94ca1d04e5467.webp" alt="Logo" className="w-full h-full object-cover" />
+              <img src="/favicon.webp" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <div className="hidden sm:flex flex-col justify-center">
               <span className="text-[20.5px] font-display font-black uppercase tracking-tighter gradient-text block leading-none">JendakaVN</span>
@@ -71,7 +72,7 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden xl:flex items-center gap-1">
-            {NAV_LINKS.map((link) => (
+            {useMemo(() => NAV_LINKS.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
@@ -85,7 +86,7 @@ export function Header() {
                 <link.icon className="w-4.5 h-4.5" />
                 {link.label}
               </Link>
-            ))}
+            )), [location.pathname])}
           </nav>
         </div>
 
@@ -109,7 +110,9 @@ export function Header() {
                         {profile?.display_name?.split(' ')[0]}
                       </span>
                     </div>
-                    <UserAvatar />
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary border border-primary/20">
+                      {userInitial}
+                    </div>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 mt-2 rounded-xl shadow-xl border-border/40">
@@ -143,7 +146,7 @@ export function Header() {
                     </>
                   )}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={async () => { await signOut(); navigate("/auth"); }} className="cursor-pointer gap-2 py-2 text-destructive focus:text-destructive">
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer gap-2 py-2 text-destructive focus:text-destructive">
                     <LogOut className="w-4 h-4" /> Đăng xuất
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -166,7 +169,7 @@ export function Header() {
               <SheetHeader className="p-6 border-b border-border/40 bg-secondary/20">
                 <SheetTitle className="flex items-center gap-2">
                   <div className="w-10 h-10 rounded-2xl overflow-hidden shadow-md bg-secondary">
-                    <img src="/z7689958741673_a9738d01cb4bd4c1bdf94ca1d04e5467.webp" alt="Logo" className="w-full h-full object-cover" />
+                    <img src="/favicon.webp" alt="Logo" className="w-full h-full object-cover" />
                   </div>
                   <span className="font-display font-bold text-lg tracking-tighter">Shop Jendaka</span>
                 </SheetTitle>

@@ -39,47 +39,32 @@ const CARD_REQUIREMENTS: Record<Network, { s: number; p: number; min?: boolean }
 function parseDiscountData(
   apiData: any
 ): Record<Network, Array<{ denomination: number; rate: number }>> {
-  console.log("🔍 [parseDiscountData] Raw input:", apiData);
-
-  let items: any[] = [];
-
-  if (Array.isArray(apiData)) {
-    items = apiData;
-  } else if (apiData && typeof apiData === "object") {
-    if (Array.isArray(apiData.data)) {
-      items = apiData.data;
-    } else if (apiData.body) {
-      try {
-        const parsedBody = JSON.parse(apiData.body);
-        items = Array.isArray(parsedBody) ? parsedBody : [];
-      } catch {
-        items = [];
-      }
+  // Helper để trích xuất mảng dữ liệu từ các cấu trúc JSON khác nhau của API
+  const extractItems = (data: any): any[] => {
+    if (Array.isArray(data)) return data;
+    if (data?.data && Array.isArray(data.data)) return data.data;
+    if (data?.body) {
+      try { return JSON.parse(data.body); } catch { return []; }
     }
-  }
+    return [];
+  };
 
-  console.log(`📦 [parseDiscountData] Extracted ${items.length} items`);
-
-  if (items.length === 0) {
-    throw new Error("No discount items found");
-  }
+  const items = extractItems(apiData);
+  if (items.length === 0) throw new Error("Không tìm thấy dữ liệu chiết khấu");
 
   const grouped: Record<string, Array<{ denomination: number; rate: number }>> =
     {};
 
-  for (const item of items) {
-    const telco = item.telco;
+  items.forEach(item => {
+    const { telco } = item;
     const value = Number(item.value);
     const fee = Number(item.fees);
 
-    if (!telco || isNaN(value) || isNaN(fee)) {
-      console.warn("⚠️ [parseDiscountData] Skipping invalid item:", item);
-      continue;
+    if (telco && !isNaN(value) && !isNaN(fee)) {
+      if (!grouped[telco]) grouped[telco] = [];
+      grouped[telco].push({ denomination: value, rate: fee });
     }
-
-    if (!grouped[telco]) grouped[telco] = [];
-    grouped[telco].push({ denomination: value, rate: fee });
-  }
+  });
 
   for (const telco in grouped) {
     grouped[telco].sort((a, b) => a.denomination - b.denomination);
@@ -97,14 +82,11 @@ function parseDiscountData(
     GARENA: "Garena",
   };
 
-  const result = {} as Record<
-    Network,
-    Array<{ denomination: number; rate: number }>
-  >;
-
-  for (const net of NETWORKS) {
-    result[net] = [];
-  }
+  // Khởi tạo object kết quả với mảng rỗng cho mọi nhà mạng
+  const result = NETWORKS.reduce((acc, net) => {
+    acc[net] = [];
+    return acc;
+  }, {} as Record<Network, Array<{ denomination: number; rate: number }>>);
 
   for (const apiTelco in grouped) {
     const network = mapping[apiTelco];
@@ -133,7 +115,8 @@ function parseDiscountData(
 
 const QRCodeDisplay = ({ amount, depositCode }: { amount: number; depositCode: string }) => {
   // Security: Encode the depositCode to ensure it doesn't break the URL parameters
-  const qrUrl = `https://img.vietqr.io/image/MB-0383732749-compact.png?amount=${amount}&addInfo=${encodeURIComponent(depositCode)}&accountName=NGUYEN%20NHAT%20HAO`;
+  const baseUrl = "https://img.vietqr.io/image/MB-0383732749-compact.png";
+  const qrUrl = `${baseUrl}?amount=${amount}&addInfo=${encodeURIComponent(depositCode)}&accountName=NGUYEN%20NHAT%20HAO`;
 
   return (
     <div className="flex flex-col items-center justify-center p-6 rounded-3xl bg-white shadow-xl">

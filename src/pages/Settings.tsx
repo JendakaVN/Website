@@ -70,9 +70,11 @@ export default function SettingsPage() {
     const newUrl = bgUrl?.trim() || "";
     
     // Security: Basic URL validation for background image
-    if (newUrl && !newUrl.match(/^https?:\/\/.+/)) {
-      return toast.error("Link ảnh không hợp lệ (phải bắt đầu bằng http:// hoặc https://)");
-    }
+    const isValidUrl = (url: string) => {
+      try { return new URL(url).protocol.startsWith('http'); } catch { return false; }
+    };
+
+    if (newUrl && !isValidUrl(newUrl)) return toast.error("Link ảnh không hợp lệ");
 
     setSavingBg(true);
     const oldUrl = (profile as any)?.background_url;
